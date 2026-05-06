@@ -1,0 +1,113 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ScanLine, CameraOff, Loader2 } from 'lucide-react';
+
+type Status = 'loading' | 'scanning' | 'error';
+
+export default function QrScanner() {
+  const router = useRouter();
+  const scannerRef = useRef<any>(null);
+  const [status, setStatus] = useState<Status>('loading');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    let stopped = false;
+
+    import('html5-qrcode').then(({ Html5Qrcode }) => {
+      if (stopped) return;
+
+      const scanner = new Html5Qrcode('qr-reader');
+      scannerRef.current = scanner;
+
+      scanner
+        .start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 240, height: 240 } },
+          (text: string) => {
+            // text is the full URL e.g. https://domain.com/report/[id]
+            try {
+              const url = new URL(text);
+              if (url.pathname.startsWith('/report/')) {
+                scanner.stop().catch(() => {});
+                router.push(url.pathname);
+              }
+            } catch {
+              // not a valid URL — keep scanning
+            }
+          },
+          () => {} // per-frame decode errors are normal, ignore
+        )
+        .then(() => setStatus('scanning'))
+        .catch((err: any) => {
+          setErrorMsg(
+            err?.message?.includes('Permission')
+              ? 'Camera permission denied. Please allow camera access and refresh.'
+              : 'Could not start camera. Please check permissions.'
+          );
+          setStatus('error');
+        });
+    });
+
+    return () => {
+      stopped = true;
+      scannerRef.current?.stop().catch(() => {});
+    };
+  }, [router]);
+
+  return (
+    <div className="flex flex-col items-center gap-4">
+      {/* Scanner viewport */}
+      <div className="relative w-full max-w-sm">
+        {status === 'loading' && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/80 rounded-2xl gap-3">
+            <Loader2 className="w-8 h-8 text-white animate-spin" />
+            <p className="text-white text-sm">Starting camera…</p>
+          </div>
+        )}
+
+        {status === 'error' && (
+          <div className="flex flex-col items-center gap-3 bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
+            <CameraOff className="w-12 h-12 text-red-400" />
+            <p className="text-red-600 text-sm font-medium">{errorMsg}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-semibold"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* html5-qrcode mounts the video here */}
+        <div
+          id="qr-reader"
+          className="w-full rounded-2xl overflow-hidden [&>video]:w-full [&>video]:rounded-2xl"
+        />
+
+        {/* Scanning overlay frame */}
+        {status === 'scanning' && (
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div className="w-56 h-56 relative">
+              {/* Corner brackets */}
+              <span className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-400 rounded-tl-lg" />
+              <span className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-400 rounded-tr-lg" />
+              <span className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-400 rounded-bl-lg" />
+              <span className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-400 rounded-br-lg" />
+              {/* Scan line animation */}
+              <span className="absolute left-2 right-2 h-0.5 bg-blue-400 animate-bounce top-1/2" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {status === 'scanning' && (
+        <div className="flex items-center gap-2 text-gray-500 text-sm">
+          <ScanLine className="w-4 h-4" />
+          Point at the QR code on the machine
+        </div>
+      )}
+    </div>
+  );
+}
