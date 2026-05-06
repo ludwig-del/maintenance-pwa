@@ -22,30 +22,38 @@ export default async function ReportPage({ params }: Props) {
 
   if (!machine) {
     return (
-      <main className="min-h-screen flex items-center justify-center px-4">
-        <div className="text-center">
+      <main className="min-h-screen flex items-center justify-center px-4 bg-gray-50">
+        <div className="text-center bg-white rounded-2xl p-10 shadow-sm border border-gray-100">
           <div className="text-5xl mb-4">❌</div>
           <h1 className="text-xl font-bold text-gray-800">Machine Not Found</h1>
-          <p className="text-gray-500 text-sm mt-2">Invalid QR code. Please scan again.</p>
+          <p className="text-gray-400 text-sm mt-2">Invalid QR code. Please scan again.</p>
         </div>
       </main>
     );
   }
 
+  const isDown = machine.status === 'down';
+
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col items-center px-4 py-8">
-      <div className="w-full max-w-md">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Report Issue</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {machine.name} — {machine.location}
-          </p>
-          {machine.status === 'down' && (
-            <div className="mt-2 bg-red-50 border border-red-200 text-red-700 text-xs font-medium px-3 py-2 rounded-lg">
-              This machine is already marked as DOWN
-            </div>
-          )}
-        </div>
+    <main className="min-h-screen bg-gradient-to-b from-blue-600 to-blue-700 flex flex-col">
+      {/* Header */}
+      <div className="px-5 pt-10 pb-6 text-white">
+        <p className="text-blue-200 text-xs font-semibold uppercase tracking-widest mb-1">
+          Maintenance Report
+        </p>
+        <h1 className="text-2xl font-bold">{machine.name}</h1>
+        <p className="text-blue-200 text-sm mt-0.5">{machine.location}</p>
+
+        {isDown && (
+          <div className="mt-3 flex items-center gap-2 bg-red-500/30 border border-red-400/40 text-red-100 text-xs font-semibold px-3 py-2 rounded-xl w-fit">
+            <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse inline-block" />
+            Machine currently DOWN
+          </div>
+        )}
+      </div>
+
+      {/* Form card */}
+      <div className="flex-1 bg-gray-50 rounded-t-3xl px-5 pt-7 pb-10">
         <ReportForm machineId={params.machineId} userId={user.id} />
       </div>
     </main>
