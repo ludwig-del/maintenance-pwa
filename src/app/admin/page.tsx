@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import MachineGrid from '@/components/admin/MachineGrid';
 import AnalyticsDashboard from '@/components/admin/AnalyticsDashboard';
+import DowntimeLog from '@/components/shared/DowntimeLog';
 
 export default async function AdminPage() {
   const supabase = createClient();
@@ -31,11 +32,18 @@ export default async function AdminPage() {
           <MachineGrid />
         </section>
 
-        <section>
+        <section className="mb-10">
           <h2 className="text-base font-semibold text-gray-600 uppercase tracking-wide mb-4">
             IE Analytics — Last 30 Days
           </h2>
           <AnalyticsDashboard />
+        </section>
+
+        <section>
+          <h2 className="text-base font-semibold text-gray-600 uppercase tracking-wide mb-4">
+            Downtime Log
+          </h2>
+          <DowntimeLog limit={50} />
         </section>
       </div>
     </main>
