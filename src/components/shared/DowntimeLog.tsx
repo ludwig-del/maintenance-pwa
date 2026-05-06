@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { format, formatDistanceStrict } from 'date-fns';
-import { Clock, Wrench, AlertTriangle } from 'lucide-react';
+import { format } from 'date-fns';
+import { Database } from 'lucide-react';
 
 interface LogRow {
   ticket_id: string;
@@ -21,11 +21,57 @@ interface LogRow {
   technician: { name: string } | null;
 }
 
-const SEV_BADGE: Record<string, string> = {
-  High:   'bg-red-100 text-red-700',
-  Medium: 'bg-yellow-100 text-yellow-700',
-  Low:    'bg-green-100 text-green-700',
+const SEV_STRIP: Record<string, string> = {
+  High:   'bg-red-500',
+  Medium: 'bg-yellow-400',
+  Low:    'bg-green-500',
 };
+
+const SEV_BADGE: Record<string, string> = {
+  High:   'bg-red-100 text-red-700 ring-1 ring-red-300',
+  Medium: 'bg-yellow-100 text-yellow-700 ring-1 ring-yellow-300',
+  Low:    'bg-green-100 text-green-700 ring-1 ring-green-300',
+};
+
+const ISSUE_ICON: Record<string, string> = {
+  Electrical: '⚡',
+  Mechanical: '⚙️',
+  Software:   '💻',
+};
+
+function totalDownMinutes(created_at: string, resolved_at: string | null): number | null {
+  if (!resolved_at) return null;
+  return Math.round((new Date(resolved_at).getTime() - new Date(created_at).getTime()) / 60000);
+}
+
+function downtimeColor(minutes: number | null): string {
+  if (minutes == null) return 'text-gray-400';
+  if (minutes > 240) return 'text-red-600 font-semibold';
+  if (minutes > 60)  return 'text-orange-500 font-semibold';
+  return 'text-gray-700';
+}
+
+function fmtMinutes(minutes: number | null): string {
+  if (minutes == null) return '—';
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
+const COLS = [
+  { label: '#',          cls: 'w-10  text-center' },
+  { label: 'Machine',    cls: 'min-w-[140px]' },
+  { label: 'Issue',      cls: 'min-w-[120px]' },
+  { label: 'Severity',   cls: 'w-24  text-center' },
+  { label: 'Reported',   cls: 'min-w-[120px]' },
+  { label: 'Resolved',   cls: 'min-w-[120px]' },
+  { label: 'Total Down', cls: 'w-28  text-right' },
+  { label: 'MTTR',       cls: 'w-24  text-right' },
+  { label: 'Root Cause', cls: 'min-w-[180px]' },
+  { label: 'Parts',      cls: 'min-w-[140px]' },
+  { label: 'Technician', cls: 'min-w-[120px]' },
+];
 
 export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
   const supabase = createClient();
@@ -54,8 +100,8 @@ export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12 text-gray-400 text-sm gap-2">
-        <div className="animate-spin w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full" />
+      <div className="flex items-center justify-center py-16 text-gray-400 text-sm gap-2">
+        <div className="animate-spin w-4 h-4 border-2 border-gray-300 border-t-gray-500 rounded-full" />
         Loading log...
       </div>
     );
@@ -63,93 +109,163 @@ export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
 
   if (!logs.length) {
     return (
-      <div className="text-center py-12 text-gray-400 text-sm">
+      <div className="text-center py-16 text-gray-400 text-sm">
         No resolved tickets yet — log will appear here after first repair.
       </div>
     );
   }
 
+  const highCount   = logs.filter(l => l.severity === 'High').length;
+  const avgMttr     = logs.filter(l => l.repair_time_minutes != null).length
+    ? Math.round(logs.reduce((s, l) => s + (l.repair_time_minutes ?? 0), 0) / logs.filter(l => l.repair_time_minutes != null).length)
+    : null;
+
   return (
-    <div className="flex flex-col gap-3">
-      {logs.map((log) => {
-        const downAt    = new Date(log.created_at);
-        const fixedAt   = log.resolved_at ? new Date(log.resolved_at) : null;
-        const totalDown = fixedAt
-          ? formatDistanceStrict(downAt, fixedAt)
-          : '—';
-        const mttr = log.repair_time_minutes != null
-          ? `${log.repair_time_minutes} min`
-          : '—';
+    <div className="rounded-2xl border border-gray-200 shadow-sm overflow-hidden bg-white">
 
-        return (
-          <div
-            key={log.ticket_id}
-            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4"
-          >
-            {/* Top row */}
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">
-                  {log.issue_type === 'Electrical' ? '⚡' :
-                   log.issue_type === 'Mechanical' ? '⚙️' : '💻'}
-                </span>
-                <div>
-                  <p className="font-bold text-gray-800 text-sm leading-tight">
-                    {log.machines?.name ?? log.machine_id}
-                  </p>
-                  <p className="text-xs text-gray-400">{log.machines?.location}</p>
-                </div>
-              </div>
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${SEV_BADGE[log.severity]}`}>
-                {log.severity}
-              </span>
-            </div>
+      {/* Toolbar */}
+      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+        <div className="flex items-center gap-2 text-gray-500">
+          <Database className="w-4 h-4" />
+          <span className="text-sm font-semibold text-gray-700">{logs.length} records</span>
+        </div>
+        <div className="flex items-center gap-4 text-xs text-gray-500">
+          <span>
+            High severity: <span className="font-semibold text-red-600">{highCount}</span>
+          </span>
+          {avgMttr != null && (
+            <span>
+              Avg MTTR: <span className="font-semibold text-blue-600">{fmtMinutes(avgMttr)}</span>
+            </span>
+          )}
+        </div>
+      </div>
 
-            {/* Time row */}
-            <div className="grid grid-cols-3 gap-2 mb-3 text-xs">
-              <div className="bg-gray-50 rounded-xl p-2 text-center">
-                <p className="text-gray-400 mb-0.5 flex items-center justify-center gap-1">
-                  <AlertTriangle className="w-3 h-3" /> Reported
-                </p>
-                <p className="font-semibold text-gray-700">
-                  {format(downAt, 'dd MMM HH:mm')}
-                </p>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-2 text-center">
-                <p className="text-gray-400 mb-0.5 flex items-center justify-center gap-1">
-                  <Clock className="w-3 h-3" /> Total Down
-                </p>
-                <p className="font-semibold text-gray-700">{totalDown}</p>
-              </div>
-              <div className="bg-blue-50 rounded-xl p-2 text-center">
-                <p className="text-blue-400 mb-0.5 flex items-center justify-center gap-1">
-                  <Wrench className="w-3 h-3" /> MTTR
-                </p>
-                <p className="font-semibold text-blue-700">{mttr}</p>
-              </div>
-            </div>
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border-collapse">
 
-            {/* Root cause */}
-            {log.root_cause && (
-              <div className="bg-gray-50 rounded-xl px-3 py-2 mb-2">
-                <p className="text-xs text-gray-400 mb-0.5">Root Cause</p>
-                <p className="text-xs text-gray-700">{log.root_cause}</p>
-              </div>
-            )}
+          {/* Header */}
+          <thead>
+            <tr className="bg-gray-50 border-b-2 border-gray-200">
+              {/* severity strip placeholder */}
+              <th className="w-1 p-0" />
+              {COLS.map((col) => (
+                <th
+                  key={col.label}
+                  className={`px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap ${col.cls}`}
+                >
+                  {col.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
 
-            {/* Parts + Technician */}
-            <div className="flex items-center justify-between text-xs text-gray-400 mt-1">
-              <span>
-                {log.parts_used ? `🔩 ${log.parts_used}` : 'No parts logged'}
-              </span>
-              <span className="flex items-center gap-1">
-                <Wrench className="w-3 h-3" />
-                {(log.technician as any)?.name ?? 'Unassigned'}
-              </span>
-            </div>
-          </div>
-        );
-      })}
+          {/* Body */}
+          <tbody>
+            {logs.map((log, idx) => {
+              const totalMin = totalDownMinutes(log.created_at, log.resolved_at);
+
+              return (
+                <tr
+                  key={log.ticket_id}
+                  className={`border-b border-gray-100 transition-colors hover:bg-blue-50/40 ${
+                    idx % 2 === 1 ? 'bg-gray-50/60' : 'bg-white'
+                  }`}
+                >
+                  {/* Severity color strip */}
+                  <td className={`w-1 p-0 ${SEV_STRIP[log.severity]}`} />
+
+                  {/* # */}
+                  <td className="px-3 py-2.5 text-center text-xs text-gray-400 tabular-nums">
+                    {idx + 1}
+                  </td>
+
+                  {/* Machine */}
+                  <td className="px-3 py-2.5">
+                    <p className="font-semibold text-gray-800 leading-tight text-xs">
+                      {log.machines?.name ?? log.machine_id}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">{log.machines?.location}</p>
+                  </td>
+
+                  {/* Issue */}
+                  <td className="px-3 py-2.5 whitespace-nowrap">
+                    <span className="flex items-center gap-1.5 text-xs text-gray-700">
+                      <span>{ISSUE_ICON[log.issue_type] ?? '🔧'}</span>
+                      {log.issue_type}
+                    </span>
+                  </td>
+
+                  {/* Severity */}
+                  <td className="px-3 py-2.5 text-center">
+                    <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${SEV_BADGE[log.severity]}`}>
+                      {log.severity}
+                    </span>
+                  </td>
+
+                  {/* Reported */}
+                  <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-600 tabular-nums">
+                    {format(new Date(log.created_at), 'dd MMM yy HH:mm')}
+                  </td>
+
+                  {/* Resolved */}
+                  <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-600 tabular-nums">
+                    {log.resolved_at ? format(new Date(log.resolved_at), 'dd MMM yy HH:mm') : '—'}
+                  </td>
+
+                  {/* Total Down */}
+                  <td className={`px-3 py-2.5 text-right text-xs tabular-nums whitespace-nowrap ${downtimeColor(totalMin)}`}>
+                    {fmtMinutes(totalMin)}
+                  </td>
+
+                  {/* MTTR */}
+                  <td className="px-3 py-2.5 text-right text-xs tabular-nums whitespace-nowrap text-blue-600 font-medium">
+                    {log.repair_time_minutes != null ? fmtMinutes(log.repair_time_minutes) : '—'}
+                  </td>
+
+                  {/* Root Cause */}
+                  <td className="px-3 py-2.5 text-xs text-gray-600 max-w-[200px]">
+                    <span className="block truncate" title={log.root_cause ?? ''}>
+                      {log.root_cause ?? <span className="text-gray-300">—</span>}
+                    </span>
+                  </td>
+
+                  {/* Parts */}
+                  <td className="px-3 py-2.5 text-xs text-gray-600 max-w-[160px]">
+                    <span className="block truncate" title={log.parts_used ?? ''}>
+                      {log.parts_used
+                        ? <span className="flex items-center gap-1">🔩 {log.parts_used}</span>
+                        : <span className="text-gray-300">—</span>
+                      }
+                    </span>
+                  </td>
+
+                  {/* Technician */}
+                  <td className="px-3 py-2.5 text-xs text-gray-700 whitespace-nowrap">
+                    {(log.technician as any)?.name ?? <span className="text-gray-300">Unassigned</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+
+          {/* Footer summary row */}
+          <tfoot>
+            <tr className="bg-gray-50 border-t-2 border-gray-200">
+              <td className="w-1 p-0" />
+              <td colSpan={7} className="px-3 py-2.5 text-xs text-gray-400 font-medium">
+                {logs.length} resolved tickets
+              </td>
+              <td className="px-3 py-2.5 text-right text-xs font-semibold text-blue-600 tabular-nums">
+                {avgMttr != null ? `avg ${fmtMinutes(avgMttr)}` : ''}
+              </td>
+              <td colSpan={3} />
+            </tr>
+          </tfoot>
+
+        </table>
+      </div>
     </div>
   );
 }
