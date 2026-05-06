@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import MachineGrid from '@/components/admin/MachineGrid';
 import AnalyticsDashboard from '@/components/admin/AnalyticsDashboard';
-import MachineQrCodes from '@/components/admin/MachineQrCodes';
 
 export default async function AdminPage() {
   const supabase = createClient();
@@ -30,13 +29,6 @@ export default async function AdminPage() {
             Machine Floor Layout
           </h2>
           <MachineGrid />
-        </section>
-
-        <section className="mb-10">
-          <h2 className="text-base font-semibold text-gray-600 uppercase tracking-wide mb-4">
-            Machine QR Codes
-          </h2>
-          <MachineQrCodes />
         </section>
 
         <section>

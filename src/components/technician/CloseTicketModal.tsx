@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import type { Ticket } from '@/types';
 
 interface Props {
@@ -11,45 +10,36 @@ interface Props {
 }
 
 export default function CloseTicketModal({ ticket, onClose, onResolved }: Props) {
-  const supabase = createClient();
-
   const [rootCause, setRootCause] = useState('');
   const [partsUsed, setPartsUsed] = useState('');
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState<string | null>(null);
 
   const handleResolve = async () => {
-    if (!rootCause.trim()) {
-      setError('Root cause is required.');
-      return;
-    }
+    if (!rootCause.trim()) { setError('Root cause is required.'); return; }
 
     setLoading(true);
     setError(null);
 
-    const { error: updateErr } = await supabase
-      .from('tickets')
-      .update({
-        status:      'Resolved',
-        root_cause:  rootCause.trim(),
-        parts_used:  partsUsed.trim() || null,
-        resolved_at: new Date().toISOString(),
-      })
-      .eq('ticket_id', ticket.ticket_id);
+    try {
+      // Use API route so service role resets machine status (client RLS blocks machine updates)
+      const res = await fetch(`/api/tickets/${ticket.ticket_id}/close`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ root_cause: rootCause, parts_used: partsUsed }),
+      });
 
-    if (updateErr) {
-      setError(updateErr.message);
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error ?? 'Failed to close ticket');
+      }
+
+      onResolved();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Restore machine to active
-    await supabase
-      .from('machines')
-      .update({ status: 'active' })
-      .eq('machine_id', ticket.machine_id);
-
-    onResolved();
   };
 
   const machineName = (ticket as any).machines?.name ?? ticket.machine_id;
