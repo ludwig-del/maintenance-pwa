@@ -18,6 +18,7 @@ export interface User {
   user_id: string;
   name: string;
   role: UserRole;
+  email: string | null;
   line_token: string | null;
   created_at: string;
 }

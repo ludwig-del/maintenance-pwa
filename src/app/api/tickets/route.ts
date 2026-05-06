@@ -83,22 +83,14 @@ async function sendTechnicianEmails({
 }) {
   if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) return;
 
-  // Get technician user IDs from custom users table
+  // Fetch emails directly from the users table (email column)
   const { data: techRows } = await supabaseAdmin
     .from('users')
-    .select('user_id')
-    .eq('role', 'technician');
+    .select('email')
+    .eq('role', 'technician')
+    .not('email', 'is', null);
 
-  if (!techRows?.length) return;
-
-  // Cross-reference with auth.users to get their emails
-  const { data: authList } = await supabaseAdmin.auth.admin.listUsers();
-  const techIds = new Set(techRows.map((r: any) => r.user_id));
-  const emails = authList.users
-    .filter((u) => techIds.has(u.id))
-    .map((u) => u.email)
-    .filter(Boolean) as string[];
-
+  const emails = (techRows ?? []).map((r: any) => r.email).filter(Boolean) as string[];
   if (!emails.length) return;
 
   const transporter = nodemailer.createTransport({
