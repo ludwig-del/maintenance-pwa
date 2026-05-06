@@ -1,0 +1,233 @@
+'use client';
+
+import { useState, useRef } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { Camera, Send, CheckCircle, AlertTriangle } from 'lucide-react';
+import type { IssueType, Severity } from '@/types';
+
+const SEVERITY_COLORS: Record<Severity, string> = {
+  High:   'bg-red-100 border-red-400 text-red-800',
+  Medium: 'bg-yellow-100 border-yellow-400 text-yellow-800',
+  Low:    'bg-green-100 border-green-400 text-green-800',
+};
+
+interface Props {
+  machineId: string;
+  userId: string;
+}
+
+export default function ReportForm({ machineId, userId }: Props) {
+  const supabase = createClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const [issueType, setIssueType]     = useState<IssueType>('Mechanical');
+  const [severity, setSeverity]       = useState<Severity>('Medium');
+  const [description, setDescription] = useState('');
+  const [imageFile, setImageFile]     = useState<File | null>(null);
+  const [preview, setPreview]         = useState<string | null>(null);
+  const [loading, setLoading]         = useState(false);
+  const [submitted, setSubmitted]     = useState(false);
+  const [error, setError]             = useState<string | null>(null);
+
+  const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setPreview(URL.createObjectURL(file));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      let image_url: string | null = null;
+
+      if (imageFile) {
+        const ext  = imageFile.name.split('.').pop();
+        const path = `${machineId}/${Date.now()}.${ext}`;
+        const { error: uploadErr } = await supabase.storage
+          .from('ticket-images')
+          .upload(path, imageFile, { upsert: false });
+        if (uploadErr) throw uploadErr;
+        const { data: urlData } = supabase.storage
+          .from('ticket-images')
+          .getPublicUrl(path);
+        image_url = urlData.publicUrl;
+      }
+
+      const res = await fetch('/api/tickets', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          machine_id:  machineId,
+          operator_id: userId,
+          issue_type:  issueType,
+          severity,
+          description: description.trim() || null,
+          image_url,
+        }),
+      });
+
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error ?? 'Submission failed');
+      }
+
+      setSubmitted(true);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const reset = () => {
+    setSubmitted(false);
+    setDescription('');
+    setImageFile(null);
+    setPreview(null);
+    setError(null);
+  };
+
+  if (submitted) {
+    return (
+      <div className="flex flex-col items-center gap-4 py-16 text-center">
+        <CheckCircle className="w-20 h-20 text-green-500" />
+        <h2 className="text-2xl font-bold text-gray-800">Ticket Submitted!</h2>
+        <p className="text-gray-500 text-sm">Technicians have been notified via LINE.</p>
+        <button
+          onClick={reset}
+          className="mt-4 px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold text-sm"
+        >
+          Submit Another
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      {/* Issue Type */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Issue Type</label>
+        <div className="grid grid-cols-3 gap-2">
+          {(['Electrical', 'Mechanical', 'Software'] as IssueType[]).map((type) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setIssueType(type)}
+              className={`py-3 rounded-xl border-2 font-semibold text-sm transition-all ${
+                issueType === type
+                  ? 'border-blue-600 bg-blue-50 text-blue-700'
+                  : 'border-gray-200 bg-white text-gray-600'
+              }`}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Severity */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Severity</label>
+        <div className="grid grid-cols-3 gap-2">
+          {(['High', 'Medium', 'Low'] as Severity[]).map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setSeverity(s)}
+              className={`py-3 rounded-xl border-2 font-semibold text-sm transition-all ${
+                severity === s
+                  ? SEVERITY_COLORS[s]
+                  : 'border-gray-200 bg-white text-gray-600'
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Description */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Description{' '}
+          <span className="font-normal text-gray-400">(optional)</span>
+        </label>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={3}
+          placeholder="Describe what you observed..."
+          className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+        />
+      </div>
+
+      {/* Image Upload */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Photo <span className="font-normal text-gray-400">(optional)</span>
+        </label>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleImage}
+        />
+        {preview ? (
+          <div className="relative">
+            <img
+              src={preview}
+              alt="preview"
+              className="w-full rounded-xl object-cover max-h-48"
+            />
+            <button
+              type="button"
+              onClick={() => { setPreview(null); setImageFile(null); }}
+              className="absolute top-2 right-2 bg-white rounded-full shadow px-2 py-1 text-xs text-red-500 font-bold"
+            >
+              Remove
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="flex items-center gap-3 w-full border-2 border-dashed border-gray-300 rounded-xl py-5 justify-center text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-colors"
+          >
+            <Camera className="w-6 h-6" />
+            <span className="text-sm font-medium">Take or Upload Photo</span>
+          </button>
+        )}
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
+
+      {/* Submit */}
+      <button
+        type="submit"
+        disabled={loading}
+        className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-bold py-4 rounded-xl text-lg transition-colors"
+      >
+        {loading ? (
+          <span className="animate-spin border-2 border-white border-t-transparent rounded-full w-5 h-5" />
+        ) : (
+          <>
+            <Send className="w-5 h-5" /> Submit Ticket
+          </>
+        )}
+      </button>
+    </form>
+  );
+}
