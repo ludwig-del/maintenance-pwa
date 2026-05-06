@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { Camera, Send, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Camera, ImagePlus, Send, CheckCircle, AlertTriangle } from 'lucide-react';
 import type { IssueType, Severity } from '@/types';
 
 const SEVERITY_COLORS: Record<Severity, string> = {
@@ -17,8 +17,9 @@ interface Props {
 }
 
 export default function ReportForm({ machineId, userId }: Props) {
-  const supabase = createClient();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const supabase   = createClient();
+  const cameraRef  = useRef<HTMLInputElement>(null); // camera only
+  const galleryRef = useRef<HTMLInputElement>(null); // gallery only
 
   const [issueType, setIssueType]     = useState<IssueType>('Mechanical');
   const [severity, setSeverity]       = useState<Severity>('Medium');
@@ -171,20 +172,31 @@ export default function ReportForm({ machineId, userId }: Props) {
         <label className="block text-sm font-semibold text-gray-700 mb-2">
           Photo <span className="font-normal text-gray-400">(optional)</span>
         </label>
+
+        {/* Camera input — opens camera app directly */}
         <input
-          ref={fileRef}
+          ref={cameraRef}
           type="file"
           accept="image/*"
           capture="environment"
           className="hidden"
           onChange={handleImage}
         />
+        {/* Gallery input — opens photo library */}
+        <input
+          ref={galleryRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleImage}
+        />
+
         {preview ? (
           <div className="relative">
             <img
               src={preview}
               alt="preview"
-              className="w-full rounded-xl object-cover max-h-48"
+              className="w-full rounded-xl object-cover max-h-56"
             />
             <button
               type="button"
@@ -195,14 +207,24 @@ export default function ReportForm({ machineId, userId }: Props) {
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="flex items-center gap-3 w-full border-2 border-dashed border-gray-300 rounded-xl py-5 justify-center text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-colors"
-          >
-            <Camera className="w-6 h-6" />
-            <span className="text-sm font-medium">Take or Upload Photo</span>
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => cameraRef.current?.click()}
+              className="flex flex-col items-center gap-2 border-2 border-dashed border-gray-300 rounded-xl py-5 text-gray-500 hover:border-blue-400 hover:text-blue-500 active:bg-blue-50 transition-colors"
+            >
+              <Camera className="w-7 h-7" />
+              <span className="text-xs font-semibold">Take Photo</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => galleryRef.current?.click()}
+              className="flex flex-col items-center gap-2 border-2 border-dashed border-gray-300 rounded-xl py-5 text-gray-500 hover:border-purple-400 hover:text-purple-500 active:bg-purple-50 transition-colors"
+            >
+              <ImagePlus className="w-7 h-7" />
+              <span className="text-xs font-semibold">From Gallery</span>
+            </button>
+          </div>
         )}
       </div>
 
