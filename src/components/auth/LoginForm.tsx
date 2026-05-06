@@ -4,15 +4,17 @@ import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { LogIn } from 'lucide-react';
+import { useLang } from '@/lib/i18n/LangContext';
 
 export default function LoginForm() {
   const supabase = createClient();
-  const router = useRouter();
+  const router   = useRouter();
+  const { t }    = useLang();
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail]     = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]     = useState<string | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +36,7 @@ export default function LoginForm() {
   return (
     <form onSubmit={handleLogin} className="flex flex-col gap-4">
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+        <label className="block text-sm font-semibold text-gray-700 mb-1">{t.login.email}</label>
         <input
           type="email"
           value={email}
@@ -47,7 +49,7 @@ export default function LoginForm() {
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1">Password</label>
+        <label className="block text-sm font-semibold text-gray-700 mb-1">{t.login.password}</label>
         <input
           type="password"
           value={password}
@@ -74,7 +76,7 @@ export default function LoginForm() {
           <span className="animate-spin border-2 border-white border-t-transparent rounded-full w-4 h-4" />
         ) : (
           <>
-            <LogIn className="w-4 h-4" /> Sign In
+            <LogIn className="w-4 h-4" /> {t.login.signIn}
           </>
         )}
       </button>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useLang } from '@/lib/i18n/LangContext';
 import type { Ticket } from '@/types';
 
 interface Props {
@@ -10,19 +11,19 @@ interface Props {
 }
 
 export default function CloseTicketModal({ ticket, onClose, onResolved }: Props) {
-  const [rootCause, setRootCause] = useState('');
-  const [partsUsed, setPartsUsed] = useState('');
-  const [loading, setLoading]     = useState(false);
-  const [error, setError]         = useState<string | null>(null);
+  const { t }                          = useLang();
+  const [rootCause, setRootCause]      = useState('');
+  const [partsUsed, setPartsUsed]      = useState('');
+  const [loading, setLoading]          = useState(false);
+  const [error, setError]              = useState<string | null>(null);
 
   const handleResolve = async () => {
-    if (!rootCause.trim()) { setError('Root cause is required.'); return; }
+    if (!rootCause.trim()) { setError(t.close.rootCauseRequired); return; }
 
     setLoading(true);
     setError(null);
 
     try {
-      // Use API route so service role resets machine status (client RLS blocks machine updates)
       const res = await fetch(`/api/tickets/${ticket.ticket_id}/close`, {
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -47,7 +48,7 @@ export default function CloseTicketModal({ ticket, onClose, onResolved }: Props)
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
-        <h2 className="text-lg font-bold text-gray-800 mb-1">Close Ticket</h2>
+        <h2 className="text-lg font-bold text-gray-800 mb-1">{t.close.title}</h2>
         <p className="text-sm text-gray-400 mb-5">
           {machineName} — {ticket.issue_type}
         </p>
@@ -55,26 +56,26 @@ export default function CloseTicketModal({ ticket, onClose, onResolved }: Props)
         <div className="flex flex-col gap-4">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Root Cause <span className="text-red-500">*</span>
+              {t.close.rootCause} <span className="text-red-500">*</span>
             </label>
             <textarea
               value={rootCause}
               onChange={(e) => setRootCause(e.target.value)}
               rows={3}
-              placeholder="What caused the failure?"
+              placeholder={t.close.rootCausePH}
               className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
             />
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Parts Used <span className="font-normal text-gray-400">(optional)</span>
+              {t.close.partsUsed} <span className="font-normal text-gray-400">{t.form.optional}</span>
             </label>
             <input
               type="text"
               value={partsUsed}
               onChange={(e) => setPartsUsed(e.target.value)}
-              placeholder="e.g. Bearing 6203, V-Belt A-42"
+              placeholder={t.close.partsPH}
               className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
@@ -92,14 +93,14 @@ export default function CloseTicketModal({ ticket, onClose, onResolved }: Props)
             disabled={loading}
             className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition-colors"
           >
-            Cancel
+            {t.close.cancel}
           </button>
           <button
             onClick={handleResolve}
             disabled={loading}
             className="flex-1 py-3 rounded-xl bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white font-bold text-sm transition-colors"
           >
-            {loading ? 'Saving...' : 'Mark Resolved'}
+            {loading ? t.close.saving : t.close.markResolved}
           </button>
         </div>
       </div>

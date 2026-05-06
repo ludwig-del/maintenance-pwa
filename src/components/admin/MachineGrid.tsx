@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import QRCode from 'react-qr-code';
 import { X, Download, Printer, Pencil, Trash2, Plus, Camera, AlertTriangle } from 'lucide-react';
+import { useLang } from '@/lib/i18n/LangContext';
 import type { Machine } from '@/types';
 
 const STATUS_STYLES: Record<string, string> = {
@@ -16,12 +17,6 @@ const STATUS_DOT: Record<string, string> = {
   active:      'bg-green-500',
   down:        'bg-red-500',
   maintenance: 'bg-yellow-400',
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  active:      'Active',
-  down:        'DOWN',
-  maintenance: 'Maintenance',
 };
 
 // ─── Photo upload helper ────────────────────────────────────────────────────
@@ -38,8 +33,14 @@ async function uploadMachinePhoto(supabase: ReturnType<typeof createClient>, mac
 
 // ─── Photo picker sub-component ─────────────────────────────────────────────
 function PhotoPicker({
-  current, onFile,
-}: { current: string | null; onFile: (f: File, preview: string) => void }) {
+  current, onFile, changeLabel, addLabel, optionalLabel,
+}: {
+  current: string | null;
+  onFile: (f: File, preview: string) => void;
+  changeLabel: string;
+  addLabel: string;
+  optionalLabel: string;
+}) {
   return (
     <div className="relative">
       {current ? (
@@ -47,7 +48,7 @@ function PhotoPicker({
           <img src={current} alt="machine" className="w-full h-full object-cover" />
           <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity cursor-pointer rounded-xl">
             <span className="text-white text-xs font-semibold flex items-center gap-1">
-              <Camera className="w-4 h-4" /> Change photo
+              <Camera className="w-4 h-4" /> {changeLabel}
             </span>
             <input type="file" accept="image/*" className="hidden" onChange={(e) => {
               const f = e.target.files?.[0];
@@ -58,7 +59,7 @@ function PhotoPicker({
       ) : (
         <label className="flex flex-col items-center gap-2 w-full border-2 border-dashed border-gray-300 rounded-xl py-6 cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-colors">
           <Camera className="w-7 h-7 text-gray-400" />
-          <span className="text-xs text-gray-500">Add machine photo <span className="text-gray-400">(optional)</span></span>
+          <span className="text-xs text-gray-500">{addLabel} <span className="text-gray-400">{optionalLabel}</span></span>
           <input type="file" accept="image/*" className="hidden" onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) onFile(f, URL.createObjectURL(f));
@@ -72,6 +73,7 @@ function PhotoPicker({
 // ─── Main component ──────────────────────────────────────────────────────────
 export default function MachineGrid() {
   const supabase = createClient();
+  const { t }    = useLang();
   const [machines, setMachines] = useState<Machine[]>([]);
 
   // Modal state
@@ -82,21 +84,21 @@ export default function MachineGrid() {
   const [confirmDel, setConfirmDel] = useState(false);
 
   // Shared async state
-  const [saving, setSaving]   = useState(false);
+  const [saving, setSaving]     = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [err, setErr]         = useState<string | null>(null);
+  const [err, setErr]           = useState<string | null>(null);
 
   // Edit form
-  const [eName, setEName]         = useState('');
-  const [eLoc, setELoc]           = useState('');
-  const [eFile, setEFile]         = useState<File | null>(null);
-  const [ePreview, setEPreview]   = useState<string | null>(null);
+  const [eName, setEName]       = useState('');
+  const [eLoc, setELoc]         = useState('');
+  const [eFile, setEFile]       = useState<File | null>(null);
+  const [ePreview, setEPreview] = useState<string | null>(null);
 
   // Add form
-  const [aName, setAName]         = useState('');
-  const [aLoc, setALoc]           = useState('');
-  const [aFile, setAFile]         = useState<File | null>(null);
-  const [aPreview, setAPreview]   = useState<string | null>(null);
+  const [aName, setAName]       = useState('');
+  const [aLoc, setALoc]         = useState('');
+  const [aFile, setAFile]       = useState<File | null>(null);
+  const [aPreview, setAPreview] = useState<string | null>(null);
 
   const qrRef  = useRef<HTMLDivElement>(null);
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
@@ -173,7 +175,6 @@ export default function MachineGrid() {
   const handleAdd = async () => {
     setSaving(true); setErr(null);
     try {
-      // Create machine first to get machine_id
       const res = await fetch('/api/machines', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -182,7 +183,6 @@ export default function MachineGrid() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
-      // Upload photo if provided
       if (aFile) {
         const photo_url = await uploadMachinePhoto(supabase, json.machine_id, aFile);
         await fetch(`/api/machines/${json.machine_id}`, {
@@ -262,15 +262,15 @@ export default function MachineGrid() {
         {(['active', 'down', 'maintenance'] as const).map((s) => (
           <span key={s} className="flex items-center gap-1.5 capitalize text-gray-600">
             <span className={`w-2.5 h-2.5 rounded-full inline-block ${STATUS_DOT[s]}`} />
-            {s} ({counts[s]})
+            {t.status[s]} ({counts[s]})
           </span>
         ))}
-        <span className="text-gray-400 italic hidden sm:inline">click machine → QR code</span>
+        <span className="text-gray-400 italic hidden sm:inline">{t.grid.clickHint}</span>
         <button
           onClick={openAdd}
           className="ml-auto flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
         >
-          <Plus className="w-3.5 h-3.5" /> Add Machine
+          <Plus className="w-3.5 h-3.5" /> {t.grid.addMachine}
         </button>
       </div>
 
@@ -286,17 +286,13 @@ export default function MachineGrid() {
                 className={`w-full rounded-xl border-2 overflow-hidden transition-all hover:scale-105 hover:shadow-lg relative ${STATUS_STYLES[m.status]}`}
                 style={{ minHeight: '90px' }}
               >
-                {/* Photo background */}
                 <img
                   src={m.photo_url}
                   alt={m.name}
                   className="absolute inset-0 w-full h-full object-cover"
                 />
-                {/* Gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                {/* Status dot top-left */}
                 <span className={`absolute top-1.5 left-1.5 w-2 h-2 rounded-full border border-white/60 ${STATUS_DOT[m.status]}`} />
-                {/* Text bottom */}
                 <div className="relative z-10 p-2 pt-6 text-left">
                   <p className="font-bold text-xs text-white leading-tight drop-shadow">{m.name}</p>
                   <p className="text-xs text-white/70 mt-0.5 leading-tight">{m.location}</p>
@@ -318,7 +314,7 @@ export default function MachineGrid() {
             <button
               onClick={(e) => { e.stopPropagation(); openEdit(m); }}
               className="absolute top-1.5 right-1.5 p-1 rounded-md bg-white/80 hover:bg-white shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-              title="Edit machine"
+              title={t.grid.editMachine}
             >
               <Pencil className="w-3 h-3 text-gray-600" />
             </button>
@@ -331,7 +327,6 @@ export default function MachineGrid() {
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={closeAll}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
 
-            {/* Machine photo */}
             {selected.photo_url && (
               <img src={selected.photo_url} alt={selected.name} className="w-full h-36 object-cover" />
             )}
@@ -347,7 +342,7 @@ export default function MachineGrid() {
                       selected.status === 'down'   ? 'bg-red-100 text-red-700' :
                                                      'bg-yellow-100 text-yellow-700'}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[selected.status]}`} />
-                    {STATUS_LABEL[selected.status]}
+                    {t.status[selected.status as keyof typeof t.status]}
                   </span>
                 </div>
                 <button onClick={closeAll} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400">
@@ -366,10 +361,10 @@ export default function MachineGrid() {
               {/* QR actions */}
               <div className="flex gap-2 w-full">
                 <button onClick={() => downloadQR(selected)} className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-xl text-sm transition-colors">
-                  <Download className="w-4 h-4" /> Download
+                  <Download className="w-4 h-4" /> {t.grid.download}
                 </button>
                 <button onClick={() => printQR(selected)} className="flex-1 flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-600 font-semibold py-2 rounded-xl text-sm transition-colors">
-                  <Printer className="w-4 h-4" /> Print
+                  <Printer className="w-4 h-4" /> {t.grid.print}
                 </button>
               </div>
 
@@ -383,26 +378,26 @@ export default function MachineGrid() {
                     onClick={() => openEdit(selected)}
                     className="flex-1 flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold py-2 rounded-xl text-sm transition-colors"
                   >
-                    <Pencil className="w-4 h-4" /> Edit
+                    <Pencil className="w-4 h-4" /> {t.grid.edit}
                   </button>
                   <button
                     onClick={() => setConfirmDel(true)}
                     className="flex-1 flex items-center justify-center gap-2 border border-red-200 hover:bg-red-50 text-red-600 font-semibold py-2 rounded-xl text-sm transition-colors"
                   >
-                    <Trash2 className="w-4 h-4" /> Delete
+                    <Trash2 className="w-4 h-4" /> {t.grid.delete}
                   </button>
                 </div>
               ) : (
                 <div className="w-full space-y-2">
-                  <p className="text-sm text-center text-gray-700 font-medium">Delete <span className="font-bold">{selected.name}</span>?</p>
-                  <p className="text-xs text-center text-gray-400">This cannot be undone.</p>
+                  <p className="text-sm text-center text-gray-700 font-medium">{t.grid.delete} <span className="font-bold">{selected.name}</span>?</p>
+                  <p className="text-xs text-center text-gray-400">{t.grid.deleteConfirm}</p>
                   {err && <p className="text-xs text-center text-red-600">{err}</p>}
                   <div className="flex gap-2">
                     <button onClick={() => { setConfirmDel(false); setErr(null); }} className="flex-1 border border-gray-300 text-gray-600 font-semibold py-2 rounded-xl text-sm hover:bg-gray-50">
-                      Cancel
+                      {t.grid.cancel}
                     </button>
                     <button onClick={handleDelete} disabled={deleting} className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-semibold py-2 rounded-xl text-sm transition-colors">
-                      {deleting ? 'Deleting…' : 'Yes, Delete'}
+                      {deleting ? t.grid.deleting : t.grid.yesDelete}
                     </button>
                   </div>
                 </div>
@@ -418,37 +413,37 @@ export default function MachineGrid() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
 
             <div className="flex items-center justify-between">
-              <h2 className="font-bold text-gray-800 text-lg">Edit Machine</h2>
+              <h2 className="font-bold text-gray-800 text-lg">{t.grid.editMachine}</h2>
               <button onClick={closeAll} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Photo */}
             <PhotoPicker
               current={ePreview}
               onFile={(f, p) => { setEFile(f); setEPreview(p); }}
+              changeLabel={t.grid.changePhoto}
+              addLabel={t.grid.addMachinePhoto}
+              optionalLabel={t.grid.optional}
             />
 
-            {/* Name */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Machine Name</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t.grid.machineName}</label>
               <input
                 value={eName}
                 onChange={(e) => setEName(e.target.value)}
                 className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g. CNC-01"
+                placeholder={t.grid.machineNamePH}
               />
             </div>
 
-            {/* Location */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Location</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t.grid.location}</label>
               <input
                 value={eLoc}
                 onChange={(e) => setELoc(e.target.value)}
                 className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g. Line A, Bay 3"
+                placeholder={t.grid.locationPH}
               />
             </div>
 
@@ -460,14 +455,14 @@ export default function MachineGrid() {
 
             <div className="flex gap-2 pt-1">
               <button onClick={() => { setView('qr'); setErr(null); }} className="flex-1 border border-gray-300 text-gray-600 font-semibold py-2.5 rounded-xl text-sm hover:bg-gray-50">
-                Cancel
+                {t.grid.cancel}
               </button>
               <button
                 onClick={handleSaveEdit}
                 disabled={saving || !eName.trim() || !eLoc.trim()}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors"
               >
-                {saving ? 'Saving…' : 'Save Changes'}
+                {saving ? t.grid.saving : t.grid.saveChanges}
               </button>
             </div>
           </div>
@@ -480,37 +475,37 @@ export default function MachineGrid() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
 
             <div className="flex items-center justify-between">
-              <h2 className="font-bold text-gray-800 text-lg">Add New Machine</h2>
+              <h2 className="font-bold text-gray-800 text-lg">{t.grid.addNewMachine}</h2>
               <button onClick={closeAll} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Photo */}
             <PhotoPicker
               current={aPreview}
               onFile={(f, p) => { setAFile(f); setAPreview(p); }}
+              changeLabel={t.grid.changePhoto}
+              addLabel={t.grid.addMachinePhoto}
+              optionalLabel={t.grid.optional}
             />
 
-            {/* Name */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Machine Name</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t.grid.machineName}</label>
               <input
                 value={aName}
                 onChange={(e) => setAName(e.target.value)}
                 className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g. CNC-01"
+                placeholder={t.grid.machineNamePH}
               />
             </div>
 
-            {/* Location */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Location</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t.grid.location}</label>
               <input
                 value={aLoc}
                 onChange={(e) => setALoc(e.target.value)}
                 className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g. Line A, Bay 3"
+                placeholder={t.grid.locationPH}
               />
             </div>
 
@@ -522,14 +517,14 @@ export default function MachineGrid() {
 
             <div className="flex gap-2 pt-1">
               <button onClick={closeAll} className="flex-1 border border-gray-300 text-gray-600 font-semibold py-2.5 rounded-xl text-sm hover:bg-gray-50">
-                Cancel
+                {t.grid.cancel}
               </button>
               <button
                 onClick={handleAdd}
                 disabled={saving || !aName.trim() || !aLoc.trim()}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
               >
-                {saving ? 'Adding…' : <><Plus className="w-4 h-4" /> Add Machine</>}
+                {saving ? t.grid.adding : <><Plus className="w-4 h-4" /> {t.grid.addMachine}</>}
               </button>
             </div>
           </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useLang } from '@/lib/i18n/LangContext';
 import TaskCard from './TaskCard';
 import TaskDetailModal from './TaskDetailModal';
 import CloseTicketModal from './CloseTicketModal';
@@ -22,6 +23,7 @@ type Tab = 'tasks' | 'history';
 
 export default function TaskBoard({ currentUser }: { currentUser: User }) {
   const supabase = createClient();
+  const { t }    = useLang();
 
   const [tab, setTab]         = useState<Tab>('tasks');
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -71,12 +73,12 @@ export default function TaskBoard({ currentUser }: { currentUser: User }) {
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-xl font-bold text-gray-800">Task Board</h1>
-              <p className="text-sm text-gray-400">Hi, {currentUser.name}</p>
+              <h1 className="text-xl font-bold text-gray-800">{t.board.title}</h1>
+              <p className="text-sm text-gray-400">{t.board.hi} {currentUser.name}</p>
             </div>
             {totalActive > 0 && (
               <span className="bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                {totalActive} active
+                {totalActive} {t.board.active}
               </span>
             )}
           </div>
@@ -91,7 +93,7 @@ export default function TaskBoard({ currentUser }: { currentUser: User }) {
                   : 'border-transparent text-gray-400 hover:text-gray-600'
               }`}
             >
-              Active Tasks
+              {t.board.activeTasks}
               {totalActive > 0 && (
                 <span className="ml-1.5 bg-blue-100 text-blue-600 text-xs px-1.5 py-0.5 rounded-full">
                   {totalActive}
@@ -106,7 +108,7 @@ export default function TaskBoard({ currentUser }: { currentUser: User }) {
                   : 'border-transparent text-gray-400 hover:text-gray-600'
               }`}
             >
-              Repair History
+              {t.board.history}
             </button>
           </div>
         </div>
@@ -125,21 +127,21 @@ export default function TaskBoard({ currentUser }: { currentUser: User }) {
               <section className="mb-6 mt-4">
                 <h2 className="text-xs font-semibold text-orange-600 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse inline-block" />
-                  In Progress ({inProgress.length})
+                  {t.board.inProgress} ({inProgress.length})
                 </h2>
                 {inProgress.length === 0 ? (
                   <p className="text-gray-400 text-sm text-center py-6 bg-white rounded-2xl border border-gray-100">
-                    No tasks in progress
+                    {t.board.noInProgress}
                   </p>
                 ) : (
                   <div className="flex flex-col gap-3">
-                    {inProgress.map((t) => (
+                    {inProgress.map((ticket) => (
                       <TaskCard
-                        key={t.ticket_id}
-                        ticket={t}
+                        key={ticket.ticket_id}
+                        ticket={ticket}
                         currentUserId={currentUser.user_id}
-                        onExpand={() => setDetail(t)}
-                        onClose={() => setClosing(t)}
+                        onExpand={() => setDetail(ticket)}
+                        onClose={() => setClosing(ticket)}
                       />
                     ))}
                   </div>
@@ -150,21 +152,21 @@ export default function TaskBoard({ currentUser }: { currentUser: User }) {
               <section>
                 <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-gray-300 inline-block" />
-                  Pending ({pending.length})
+                  {t.board.pending} ({pending.length})
                 </h2>
                 {pending.length === 0 ? (
                   <p className="text-gray-400 text-sm text-center py-6 bg-white rounded-2xl border border-gray-100">
-                    No pending tasks — all clear!
+                    {t.board.noPending}
                   </p>
                 ) : (
                   <div className="flex flex-col gap-3">
-                    {pending.map((t) => (
+                    {pending.map((ticket) => (
                       <TaskCard
-                        key={t.ticket_id}
-                        ticket={t}
+                        key={ticket.ticket_id}
+                        ticket={ticket}
                         currentUserId={currentUser.user_id}
-                        onExpand={() => setDetail(t)}
-                        onClaim={() => handleClaim(t.ticket_id)}
+                        onExpand={() => setDetail(ticket)}
+                        onClaim={() => handleClaim(ticket.ticket_id)}
                       />
                     ))}
                   </div>

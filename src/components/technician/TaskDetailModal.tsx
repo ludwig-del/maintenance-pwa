@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { X, Clock, Wrench, MapPin, User, AlertTriangle } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
+import { useLang } from '@/lib/i18n/LangContext';
 import type { Ticket } from '@/types';
 
 const SEVERITY_COLOR: Record<string, string> = {
@@ -39,7 +40,8 @@ interface Props {
 }
 
 export default function TaskDetailModal({ ticket, currentUserId, onClose, onClaim, onCloseTicket }: Props) {
-  const supabase = createClient();
+  const supabase             = createClient();
+  const { t }                = useLang();
   const [history, setHistory]           = useState<HistoryRow[]>([]);
   const [loadingHistory, setLoading]    = useState(true);
 
@@ -95,7 +97,7 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
 
           {/* Current report detail */}
           <section>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Current Report</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">{t.detail.currentReport}</p>
             <div className={`rounded-2xl border p-4 space-y-3 ${SEVERITY_BG[ticket.severity]}`}>
               {/* Severity + issue */}
               <div className="flex items-center justify-between">
@@ -103,10 +105,12 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
                   <span className="text-lg">
                     {ticket.issue_type === 'Electrical' ? '⚡' : ticket.issue_type === 'Mechanical' ? '⚙️' : '💻'}
                   </span>
-                  <span className="font-semibold text-gray-700 text-sm">{ticket.issue_type}</span>
+                  <span className="font-semibold text-gray-700 text-sm">
+                    {t.issueType[ticket.issue_type as keyof typeof t.issueType] ?? ticket.issue_type}
+                  </span>
                 </div>
                 <span className={`font-bold text-sm ${SEVERITY_COLOR[ticket.severity]}`}>
-                  {ticket.severity} Severity
+                  {t.severity[ticket.severity as keyof typeof t.severity] ?? ticket.severity}
                 </span>
               </div>
 
@@ -114,12 +118,12 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
               <div className="text-sm space-y-2 pt-1 border-t border-black/5">
                 <div className="flex items-center gap-2 text-gray-600">
                   <User className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                  <span className="text-gray-400">Reported by</span>
+                  <span className="text-gray-400">{t.detail.reportedBy}</span>
                   <span className="ml-auto font-medium text-gray-700">{operatorName}</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-600">
                   <Clock className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                  <span className="text-gray-400">Submitted</span>
+                  <span className="text-gray-400">{t.detail.submitted}</span>
                   <span className="ml-auto font-medium text-gray-700">
                     {formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true })}
                   </span>
@@ -127,9 +131,9 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
                 {ticket.status === 'In Progress' && (
                   <div className="flex items-center gap-2 text-gray-600">
                     <Wrench className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                    <span className="text-gray-400">Assigned to</span>
+                    <span className="text-gray-400">{t.detail.assignedTo}</span>
                     <span className="ml-auto font-medium text-orange-600">
-                      {isOwnTask ? 'You' : (technicianName ?? 'Another technician')}
+                      {isOwnTask ? t.detail.you : (technicianName ?? t.detail.anotherTech)}
                     </span>
                   </div>
                 )}
@@ -139,7 +143,7 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
               {ticket.description && (
                 <div className="pt-2 border-t border-black/5">
                   <p className="text-xs text-gray-400 mb-1 flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" /> Operator note
+                    <AlertTriangle className="w-3 h-3" /> {t.detail.operatorNote}
                   </p>
                   <p className="text-sm text-gray-700">{ticket.description}</p>
                 </div>
@@ -153,7 +157,7 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
               onClick={() => { onClaim(); onClose(); }}
               className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-3 rounded-xl text-sm transition-all"
             >
-              <Wrench className="w-4 h-4" /> Claim Task
+              <Wrench className="w-4 h-4" /> {t.detail.claimTask}
             </button>
           )}
           {ticket.status === 'In Progress' && isOwnTask && onCloseTicket && (
@@ -161,14 +165,14 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
               onClick={() => { onCloseTicket(); onClose(); }}
               className="w-full bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-3 rounded-xl text-sm transition-all"
             >
-              Close Task
+              {t.detail.closeTask}
             </button>
           )}
 
           {/* Machine repair history */}
           <section>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
-              Repair History — {machineName}
+              {t.detail.repairHistory} {machineName}
             </p>
 
             {loadingHistory ? (
@@ -179,7 +183,7 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
               </div>
             ) : history.length === 0 ? (
               <div className="text-center py-10 text-gray-400 text-sm bg-gray-50 rounded-2xl border border-gray-100">
-                No repair history for this machine yet
+                {t.detail.noHistory}
               </div>
             ) : (
               <div className="space-y-2">
@@ -191,7 +195,7 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
                         <span>
                           {h.issue_type === 'Electrical' ? '⚡' : h.issue_type === 'Mechanical' ? '⚙️' : '💻'}
                         </span>
-                        {h.issue_type}
+                        {t.issueType[h.issue_type as keyof typeof t.issueType] ?? h.issue_type}
                       </span>
                       <span className="text-xs text-gray-400">
                         {h.resolved_at ? format(new Date(h.resolved_at), 'dd MMM yyyy') : '—'}
@@ -201,14 +205,14 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
                     {/* Root cause */}
                     {h.root_cause && (
                       <p className="text-gray-600 mb-1">
-                        <span className="text-gray-400 text-xs">Root cause: </span>{h.root_cause}
+                        <span className="text-gray-400 text-xs">{t.detail.rootCause} </span>{h.root_cause}
                       </p>
                     )}
 
                     {/* Parts */}
                     {h.parts_used && (
                       <p className="text-gray-600 mb-1">
-                        <span className="text-gray-400 text-xs">Parts: </span>{h.parts_used}
+                        <span className="text-gray-400 text-xs">{t.detail.parts} </span>{h.parts_used}
                       </p>
                     )}
 
@@ -225,7 +229,7 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
                         </span>
                       )}
                       <span className={`ml-auto font-semibold ${SEVERITY_COLOR[h.severity]}`}>
-                        {h.severity}
+                        {t.severity[h.severity as keyof typeof t.severity] ?? h.severity}
                       </span>
                     </div>
                   </div>

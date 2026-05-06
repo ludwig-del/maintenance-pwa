@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { LangProvider } from '@/lib/i18n/LangContext';
+import LangToggle from '@/components/shared/LangToggle';
 
 export const metadata: Metadata = {
   title: 'MaintTrack',
@@ -25,7 +27,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
-      <body className="antialiased bg-gray-50">{children}</body>
+      <body className="antialiased bg-gray-50">
+        <LangProvider>
+          {children}
+          <LangToggle />
+        </LangProvider>
+      </body>
     </html>
   );
 }

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import ReportForm from '@/components/operator/ReportForm';
+import { TText } from '@/components/shared/TText';
 
 interface Props {
   params: { machineId: string };
@@ -25,8 +26,12 @@ export default async function ReportPage({ params }: Props) {
       <main className="min-h-screen flex items-center justify-center px-4 bg-gray-50">
         <div className="text-center bg-white rounded-2xl p-10 shadow-sm border border-gray-100">
           <div className="text-5xl mb-4">❌</div>
-          <h1 className="text-xl font-bold text-gray-800">Machine Not Found</h1>
-          <p className="text-gray-400 text-sm mt-2">Invalid QR code. Please scan again.</p>
+          <h1 className="text-xl font-bold text-gray-800">
+            <TText en="Machine Not Found" th="ไม่พบเครื่องจักร" />
+          </h1>
+          <p className="text-gray-400 text-sm mt-2">
+            <TText en="Invalid QR code. Please scan again." th="QR Code ไม่ถูกต้อง กรุณาสแกนใหม่" />
+          </p>
         </div>
       </main>
     );
@@ -39,7 +44,7 @@ export default async function ReportPage({ params }: Props) {
       {/* Header */}
       <div className="px-5 pt-10 pb-6 text-white">
         <p className="text-blue-200 text-xs font-semibold uppercase tracking-widest mb-1">
-          Maintenance Report
+          <TText en="Maintenance Report" th="แบบฟอร์มแจ้งซ่อม" />
         </p>
         <h1 className="text-2xl font-bold">{machine.name}</h1>
         <p className="text-blue-200 text-sm mt-0.5">{machine.location}</p>
@@ -47,7 +52,7 @@ export default async function ReportPage({ params }: Props) {
         {isDown && (
           <div className="mt-3 flex items-center gap-2 bg-red-500/30 border border-red-400/40 text-red-100 text-xs font-semibold px-3 py-2 rounded-xl w-fit">
             <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse inline-block" />
-            Machine currently DOWN
+            <TText en="Machine currently DOWN" th="เครื่องจักรหยุดทำงาน" />
           </div>
         )}
       </div>

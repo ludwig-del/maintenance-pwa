@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Wrench, Clock, MapPin } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { useLang } from '@/lib/i18n/LangContext';
 import type { Ticket } from '@/types';
 
 const SEVERITY_BORDER: Record<string, string> = {
@@ -33,7 +34,7 @@ interface Props {
 }
 
 function SignedImage({ imageUrl }: { imageUrl: string }) {
-  const supabase   = createClient();
+  const supabase             = createClient();
   const [src, setSrc]         = useState<string | null>(null);
   const [lightbox, setLightbox] = useState(false);
 
@@ -86,6 +87,7 @@ function SignedImage({ imageUrl }: { imageUrl: string }) {
 }
 
 export default function TaskCard({ ticket, currentUserId, onExpand, onClaim, onClose }: Props) {
+  const { t }          = useLang();
   const isOwnTask      = ticket.technician_id === currentUserId;
   const age            = formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true });
   const machineName    = (ticket as any).machines?.name ?? ticket.machine_id;
@@ -113,7 +115,7 @@ export default function TaskCard({ ticket, currentUserId, onExpand, onClaim, onC
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className={`text-xs font-bold border px-2 py-1 rounded-full whitespace-nowrap ${SEVERITY_BADGE[ticket.severity]}`}>
-              {ticket.severity}
+              {t.severity[ticket.severity as keyof typeof t.severity] ?? ticket.severity}
             </span>
             <span className="text-gray-300 text-xs">›</span>
           </div>
@@ -125,7 +127,7 @@ export default function TaskCard({ ticket, currentUserId, onExpand, onClaim, onC
             <Clock className="w-3 h-3" />{age}
           </span>
           <span className="text-gray-300">•</span>
-          <span>{ticket.issue_type}</span>
+          <span>{t.issueType[ticket.issue_type as keyof typeof t.issueType] ?? ticket.issue_type}</span>
           {ticket.description && (
             <>
               <span className="text-gray-300">•</span>
@@ -135,9 +137,8 @@ export default function TaskCard({ ticket, currentUserId, onExpand, onClaim, onC
         </div>
       </button>
 
-      {/* Photo + Actions — separate from the tappable area */}
+      {/* Photo + Actions */}
       <div className="px-4 pb-4">
-        {/* Photo — uses signed URL so private bucket images load correctly */}
         {ticket.image_url && <SignedImage imageUrl={ticket.image_url} />}
 
         {ticket.status === 'Pending' && onClaim && (
@@ -145,21 +146,23 @@ export default function TaskCard({ ticket, currentUserId, onExpand, onClaim, onC
             onClick={(e) => { e.stopPropagation(); onClaim(); }}
             className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-2.5 rounded-xl text-sm transition-all"
           >
-            <Wrench className="w-4 h-4" /> Claim Task
+            <Wrench className="w-4 h-4" /> {t.card.claimTask}
           </button>
         )}
 
         {ticket.status === 'In Progress' && (
           <div className="flex flex-col gap-2">
             <p className="text-xs text-center font-medium text-orange-600">
-              {isOwnTask ? '✅ Assigned to you' : `🔧 Claimed by ${technicianName ?? 'another technician'}`}
+              {isOwnTask
+                ? t.card.assignedToYou
+                : `${t.card.claimedBy} ${technicianName ?? t.card.anotherTech}`}
             </p>
             {isOwnTask && onClose && (
               <button
                 onClick={(e) => { e.stopPropagation(); onClose(); }}
                 className="w-full bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-2.5 rounded-xl text-sm transition-all"
               >
-                Close Task
+                {t.card.closeTask}
               </button>
             )}
           </div>
