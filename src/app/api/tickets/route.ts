@@ -43,17 +43,18 @@ export async function POST(req: NextRequest) {
     const location    = (ticket as any).machines?.location ?? '';
     const emoji       = severity === 'High' ? '🔴' : severity === 'Medium' ? '🟡' : '🟢';
 
-    // Non-blocking notifications
-    sendLineNotify(
-      `\n${emoji} [${severity}] New Maintenance Ticket\n` +
-        `Machine: ${machineName} (${location})\n` +
-        `Issue: ${issue_type}\n` +
-        (description ? `Note: ${description}\n` : '') +
-        `ID: ${ticket.ticket_id}`
-    ).catch(console.error);
-
-    sendTechnicianEmails({ machineName, location, severity, issueType: issue_type, description, ticketId: ticket.ticket_id })
-      .catch(console.error);
+    // Await both notifications before returning — serverless functions can be
+    // killed early if we fire-and-forget without waiting for completion
+    await Promise.allSettled([
+      sendLineNotify(
+        `\n${emoji} [${severity}] New Maintenance Ticket\n` +
+          `Machine: ${machineName} (${location})\n` +
+          `Issue: ${issue_type}\n` +
+          (description ? `Note: ${description}\n` : '') +
+          `ID: ${ticket.ticket_id}`
+      ),
+      sendTechnicianEmails({ machineName, location, severity, issueType: issue_type, description, ticketId: ticket.ticket_id }),
+    ]);
 
     return NextResponse.json({ ticket_id: ticket.ticket_id }, { status: 201 });
   } catch (err: any) {
