@@ -94,8 +94,10 @@ async function sendTechnicianEmails({
   if (!emails.length) return;
 
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
+    host:   'smtp.gmail.com',
+    port:   465,
+    secure: true,
+    auth:   { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD!.replace(/\s/g, '') },
   });
 
   const emoji      = severity === 'High' ? '🔴' : severity === 'Medium' ? '🟡' : '🟢';
