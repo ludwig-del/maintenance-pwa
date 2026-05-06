@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { format, formatDistanceStrict } from 'date-fns';
-import { Clock, Wrench, AlertTriangle } from 'lucide-react';
+import { Clock, Wrench, AlertTriangle, Sheet, CheckCircle2, XCircle } from 'lucide-react';
 
 interface LogRow {
   ticket_id: string;
@@ -27,10 +27,31 @@ const SEV_BADGE: Record<string, string> = {
   Low:    'bg-green-100 text-green-700',
 };
 
-export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
+type ExportState = 'idle' | 'sending' | 'ok' | 'error';
+
+export default function DowntimeLog({ limit = 30, showExport = false }: { limit?: number; showExport?: boolean }) {
   const supabase = createClient();
-  const [logs, setLogs]       = useState<LogRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [logs, setLogs]             = useState<LogRow[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [exportState, setExport]    = useState<ExportState>('idle');
+  const [exportMsg, setExportMsg]   = useState('');
+
+  const handleExport = async () => {
+    setExport('sending');
+    setExportMsg('');
+    try {
+      const res  = await fetch('/api/export/sheets', { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Export failed');
+      setExportMsg(`${json.rows} rows sent`);
+      setExport('ok');
+    } catch (err: any) {
+      setExportMsg(err.message);
+      setExport('error');
+    } finally {
+      setTimeout(() => setExport('idle'), 4000);
+    }
+  };
 
   useEffect(() => {
     supabase
@@ -71,6 +92,35 @@ export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Google Sheets export button — admin only */}
+      {showExport && (
+        <div className="flex items-center gap-3 mb-1">
+          <button
+            onClick={handleExport}
+            disabled={exportState === 'sending'}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors"
+          >
+            {exportState === 'sending' ? (
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Sheet className="w-4 h-4" />
+            )}
+            {exportState === 'sending' ? 'Sending…' : 'Send to Google Sheet'}
+          </button>
+
+          {exportState === 'ok' && (
+            <span className="flex items-center gap-1 text-sm text-emerald-600 font-medium">
+              <CheckCircle2 className="w-4 h-4" /> {exportMsg}
+            </span>
+          )}
+          {exportState === 'error' && (
+            <span className="flex items-center gap-1 text-sm text-red-600 font-medium">
+              <XCircle className="w-4 h-4" /> {exportMsg}
+            </span>
+          )}
+        </div>
+      )}
+
       {logs.map((log) => {
         const downAt    = new Date(log.created_at);
         const fixedAt   = log.resolved_at ? new Date(log.resolved_at) : null;
