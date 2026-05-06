@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import TaskCard from './TaskCard';
+import TaskDetailModal from './TaskDetailModal';
 import CloseTicketModal from './CloseTicketModal';
 import DowntimeLog from '@/components/shared/DowntimeLog';
 import type { Ticket, User } from '@/types';
@@ -25,6 +26,7 @@ export default function TaskBoard({ currentUser }: { currentUser: User }) {
   const [tab, setTab]         = useState<Tab>('tasks');
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [closing, setClosing] = useState<Ticket | null>(null);
+  const [detail, setDetail]   = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchTickets = useCallback(async () => {
@@ -140,6 +142,7 @@ export default function TaskBoard({ currentUser }: { currentUser: User }) {
                         key={t.ticket_id}
                         ticket={t}
                         currentUserId={currentUser.user_id}
+                        onExpand={() => setDetail(t)}
                         onClose={() => setClosing(t)}
                       />
                     ))}
@@ -164,6 +167,7 @@ export default function TaskBoard({ currentUser }: { currentUser: User }) {
                         key={t.ticket_id}
                         ticket={t}
                         currentUserId={currentUser.user_id}
+                        onExpand={() => setDetail(t)}
                         onClaim={() => handleClaim(t.ticket_id)}
                       />
                     ))}
@@ -178,6 +182,18 @@ export default function TaskBoard({ currentUser }: { currentUser: User }) {
           </div>
         )}
       </div>
+
+      {detail && (
+        <TaskDetailModal
+          ticket={detail}
+          currentUserId={currentUser.user_id}
+          onClose={() => setDetail(null)}
+          onClaim={detail.status === 'Pending' ? () => { handleClaim(detail.ticket_id); setDetail(null); } : undefined}
+          onCloseTicket={detail.status === 'In Progress' && detail.technician_id === currentUser.user_id
+            ? () => { setDetail(null); setClosing(detail); }
+            : undefined}
+        />
+      )}
 
       {closing && (
         <CloseTicketModal

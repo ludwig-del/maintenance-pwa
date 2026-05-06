@@ -27,6 +27,7 @@ const ISSUE_ICON: Record<string, string> = {
 interface Props {
   ticket: Ticket;
   currentUserId: string;
+  onExpand?: () => void;
   onClaim?: () => void;
   onClose?: () => void;
 }
@@ -84,7 +85,7 @@ function SignedImage({ imageUrl }: { imageUrl: string }) {
   );
 }
 
-export default function TaskCard({ ticket, currentUserId, onClaim, onClose }: Props) {
+export default function TaskCard({ ticket, currentUserId, onExpand, onClaim, onClose }: Props) {
   const isOwnTask      = ticket.technician_id === currentUserId;
   const age            = formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true });
   const machineName    = (ticket as any).machines?.name ?? ticket.machine_id;
@@ -92,66 +93,78 @@ export default function TaskCard({ ticket, currentUserId, onClaim, onClose }: Pr
   const technicianName = (ticket as any).technician?.name as string | undefined;
 
   return (
-    <div className={`bg-white rounded-2xl shadow-sm border-l-4 p-4 ${SEVERITY_BORDER[ticket.severity]}`}>
-      {/* Header */}
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">{ISSUE_ICON[ticket.issue_type]}</span>
-          <div>
-            <p className="font-bold text-gray-800 text-sm leading-tight">{machineName}</p>
-            <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
-              <MapPin className="w-3 h-3" />{location}
-            </p>
+    <div className={`bg-white rounded-2xl shadow-sm border-l-4 ${SEVERITY_BORDER[ticket.severity]}`}>
+      {/* Tappable body — opens detail modal */}
+      <button
+        type="button"
+        onClick={onExpand}
+        className="w-full text-left p-4 focus:outline-none"
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">{ISSUE_ICON[ticket.issue_type]}</span>
+            <div>
+              <p className="font-bold text-gray-800 text-sm leading-tight">{machineName}</p>
+              <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                <MapPin className="w-3 h-3" />{location}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className={`text-xs font-bold border px-2 py-1 rounded-full whitespace-nowrap ${SEVERITY_BADGE[ticket.severity]}`}>
+              {ticket.severity}
+            </span>
+            <span className="text-gray-300 text-xs">›</span>
           </div>
         </div>
-        <span className={`text-xs font-bold border px-2 py-1 rounded-full whitespace-nowrap ${SEVERITY_BADGE[ticket.severity]}`}>
-          {ticket.severity}
-        </span>
-      </div>
 
-      {/* Meta */}
-      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400 mb-3">
-        <span className="flex items-center gap-1">
-          <Clock className="w-3 h-3" />{age}
-        </span>
-        <span className="text-gray-300">•</span>
-        <span>{ticket.issue_type}</span>
-        {ticket.description && (
-          <>
-            <span className="text-gray-300">•</span>
-            <span className="italic truncate max-w-xs">{ticket.description}</span>
-          </>
-        )}
-      </div>
-
-      {/* Photo — uses signed URL so private bucket images load correctly */}
-      {ticket.image_url && <SignedImage imageUrl={ticket.image_url} />}
-
-      {/* Actions */}
-      {ticket.status === 'Pending' && onClaim && (
-        <button
-          onClick={onClaim}
-          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-2.5 rounded-xl text-sm transition-all"
-        >
-          <Wrench className="w-4 h-4" /> Claim Task
-        </button>
-      )}
-
-      {ticket.status === 'In Progress' && (
-        <div className="flex flex-col gap-2">
-          <p className="text-xs text-center font-medium text-orange-600">
-            {isOwnTask ? '✅ Assigned to you' : `🔧 Claimed by ${technicianName ?? 'another technician'}`}
-          </p>
-          {isOwnTask && onClose && (
-            <button
-              onClick={onClose}
-              className="w-full bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-2.5 rounded-xl text-sm transition-all"
-            >
-              Close Task
-            </button>
+        {/* Meta */}
+        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+          <span className="flex items-center gap-1">
+            <Clock className="w-3 h-3" />{age}
+          </span>
+          <span className="text-gray-300">•</span>
+          <span>{ticket.issue_type}</span>
+          {ticket.description && (
+            <>
+              <span className="text-gray-300">•</span>
+              <span className="italic truncate max-w-xs">{ticket.description}</span>
+            </>
           )}
         </div>
-      )}
+      </button>
+
+      {/* Photo + Actions — separate from the tappable area */}
+      <div className="px-4 pb-4">
+        {/* Photo — uses signed URL so private bucket images load correctly */}
+        {ticket.image_url && <SignedImage imageUrl={ticket.image_url} />}
+
+        {ticket.status === 'Pending' && onClaim && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onClaim(); }}
+            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-2.5 rounded-xl text-sm transition-all"
+          >
+            <Wrench className="w-4 h-4" /> Claim Task
+          </button>
+        )}
+
+        {ticket.status === 'In Progress' && (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-center font-medium text-orange-600">
+              {isOwnTask ? '✅ Assigned to you' : `🔧 Claimed by ${technicianName ?? 'another technician'}`}
+            </p>
+            {isOwnTask && onClose && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onClose(); }}
+                className="w-full bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-2.5 rounded-xl text-sm transition-all"
+              >
+                Close Task
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
