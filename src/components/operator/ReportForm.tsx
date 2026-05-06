@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Camera, ImagePlus, Send, CheckCircle, AlertTriangle } from 'lucide-react';
 import type { IssueType, Severity } from '@/types';
@@ -17,9 +17,7 @@ interface Props {
 }
 
 export default function ReportForm({ machineId, userId }: Props) {
-  const supabase   = createClient();
-  const cameraRef  = useRef<HTMLInputElement>(null); // camera only
-  const galleryRef = useRef<HTMLInputElement>(null); // gallery only
+  const supabase = createClient();
 
   const [issueType, setIssueType]     = useState<IssueType>('Mechanical');
   const [severity, setSeverity]       = useState<Severity>('Medium');
@@ -169,27 +167,9 @@ export default function ReportForm({ machineId, userId }: Props) {
 
       {/* Image Upload */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <p className="block text-sm font-semibold text-gray-700 mb-2">
           Photo <span className="font-normal text-gray-400">(optional)</span>
-        </label>
-
-        {/* Camera input — opens camera app directly */}
-        <input
-          ref={cameraRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={handleImage}
-        />
-        {/* Gallery input — opens photo library */}
-        <input
-          ref={galleryRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleImage}
-        />
+        </p>
 
         {preview ? (
           <div className="relative">
@@ -208,22 +188,29 @@ export default function ReportForm({ machineId, userId }: Props) {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => cameraRef.current?.click()}
-              className="flex flex-col items-center gap-2 border-2 border-dashed border-gray-300 rounded-xl py-5 text-gray-500 hover:border-blue-400 hover:text-blue-500 active:bg-blue-50 transition-colors"
-            >
+            {/* Label triggers input directly — bypasses browser security block on programmatic .click() */}
+            <label className="flex flex-col items-center gap-2 border-2 border-dashed border-gray-300 rounded-xl py-5 text-gray-500 hover:border-blue-400 hover:text-blue-500 active:bg-blue-50 transition-colors cursor-pointer">
               <Camera className="w-7 h-7" />
               <span className="text-xs font-semibold">Take Photo</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => galleryRef.current?.click()}
-              className="flex flex-col items-center gap-2 border-2 border-dashed border-gray-300 rounded-xl py-5 text-gray-500 hover:border-purple-400 hover:text-purple-500 active:bg-purple-50 transition-colors"
-            >
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleImage}
+              />
+            </label>
+
+            <label className="flex flex-col items-center gap-2 border-2 border-dashed border-gray-300 rounded-xl py-5 text-gray-500 hover:border-purple-400 hover:text-purple-500 active:bg-purple-50 transition-colors cursor-pointer">
               <ImagePlus className="w-7 h-7" />
               <span className="text-xs font-semibold">From Gallery</span>
-            </button>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImage}
+              />
+            </label>
           </div>
         )}
       </div>
