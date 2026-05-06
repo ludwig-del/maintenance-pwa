@@ -47,7 +47,7 @@ export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
       .order('resolved_at', { ascending: false })
       .limit(limit)
       .then(({ data }) => {
-        if (data) setLogs(data as LogRow[]);
+        if (data) setLogs(data as unknown as LogRow[]);
         setLoading(false);
       });
   }, [supabase, limit]);
