@@ -43,7 +43,7 @@ export default async function AdminPage() {
           <h2 className="text-base font-semibold text-gray-600 uppercase tracking-wide mb-4">
             Downtime Log
           </h2>
-          <DowntimeLog limit={50} showExport />
+          <DowntimeLog limit={50} />
         </section>
       </div>
     </main>
