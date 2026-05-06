@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { Camera, ImagePlus, Send, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Camera, Send, CheckCircle, AlertTriangle } from 'lucide-react';
 import type { IssueType, Severity } from '@/types';
 
 const SEVERITY_COLORS: Record<Severity, string> = {
@@ -181,37 +181,27 @@ export default function ReportForm({ machineId, userId }: Props) {
             <button
               type="button"
               onClick={() => { setPreview(null); setImageFile(null); }}
-              className="absolute top-2 right-2 bg-white rounded-full shadow px-2 py-1 text-xs text-red-500 font-bold"
+              className="absolute top-2 right-2 bg-white rounded-full shadow px-3 py-1 text-xs text-red-500 font-bold"
             >
               Remove
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
-            {/* Label triggers input directly — bypasses browser security block on programmatic .click() */}
-            <label className="flex flex-col items-center gap-2 border-2 border-dashed border-gray-300 rounded-xl py-5 text-gray-500 hover:border-blue-400 hover:text-blue-500 active:bg-blue-50 transition-colors cursor-pointer">
-              <Camera className="w-7 h-7" />
-              <span className="text-xs font-semibold">Take Photo</span>
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handleImage}
-              />
-            </label>
-
-            <label className="flex flex-col items-center gap-2 border-2 border-dashed border-gray-300 rounded-xl py-5 text-gray-500 hover:border-purple-400 hover:text-purple-500 active:bg-purple-50 transition-colors cursor-pointer">
-              <ImagePlus className="w-7 h-7" />
-              <span className="text-xs font-semibold">From Gallery</span>
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleImage}
-              />
-            </label>
-          </div>
+          // Single label — no capture attribute so Chrome shows the OS sheet
+          // (Android: Camera / Files picker  |  iOS: Take Photo / Photo Library)
+          <label className="flex flex-col items-center gap-3 w-full border-2 border-dashed border-gray-300 rounded-xl py-8 text-gray-500 hover:border-blue-400 hover:text-blue-600 active:bg-blue-50 transition-colors cursor-pointer">
+            <Camera className="w-10 h-10" />
+            <div className="text-center">
+              <p className="text-sm font-semibold">Add Photo</p>
+              <p className="text-xs text-gray-400 mt-0.5">Camera or Gallery</p>
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImage}
+            />
+          </label>
         )}
       </div>
 
