@@ -187,21 +187,23 @@ export default function ReportForm({ machineId, userId }: Props) {
             </button>
           </div>
         ) : (
-          // Single label — no capture attribute so Chrome shows the OS sheet
-          // (Android: Camera / Files picker  |  iOS: Take Photo / Photo Library)
-          <label className="flex flex-col items-center gap-3 w-full border-2 border-dashed border-gray-300 rounded-xl py-8 text-gray-500 hover:border-blue-400 hover:text-blue-600 active:bg-blue-50 transition-colors cursor-pointer">
-            <Camera className="w-10 h-10" />
-            <div className="text-center">
-              <p className="text-sm font-semibold">Add Photo</p>
-              <p className="text-xs text-gray-400 mt-0.5">Camera or Gallery</p>
+          // input covers the full button area with opacity-0 so the finger
+          // taps the real file input — display:none blocks mobile Chrome
+          <div className="relative w-full">
+            <div className="flex flex-col items-center gap-3 w-full border-2 border-dashed border-gray-300 rounded-xl py-8 text-gray-500 pointer-events-none">
+              <Camera className="w-10 h-10" />
+              <div className="text-center">
+                <p className="text-sm font-semibold">Add Photo</p>
+                <p className="text-xs text-gray-400 mt-0.5">Camera or Gallery</p>
+              </div>
             </div>
             <input
               type="file"
               accept="image/*"
-              className="hidden"
               onChange={handleImage}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
-          </label>
+          </div>
         )}
       </div>
 
