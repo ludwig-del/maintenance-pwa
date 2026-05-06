@@ -68,9 +68,7 @@ const COLS = [
   { label: 'Resolved',   cls: 'min-w-[120px]' },
   { label: 'Total Down', cls: 'w-28  text-right' },
   { label: 'MTTR',       cls: 'w-24  text-right' },
-  { label: 'Root Cause', cls: 'min-w-[180px]' },
-  { label: 'Parts',      cls: 'min-w-[140px]' },
-  { label: 'Technician', cls: 'min-w-[120px]' },
+  { label: 'Root Cause', cls: 'min-w-[220px]' },
 ];
 
 export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
@@ -225,25 +223,10 @@ export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
                   </td>
 
                   {/* Root Cause */}
-                  <td className="px-3 py-2.5 text-xs text-gray-600 max-w-[200px]">
+                  <td className="px-3 py-2.5 text-xs text-gray-600 max-w-[240px]">
                     <span className="block truncate" title={log.root_cause ?? ''}>
                       {log.root_cause ?? <span className="text-gray-300">—</span>}
                     </span>
-                  </td>
-
-                  {/* Parts */}
-                  <td className="px-3 py-2.5 text-xs text-gray-600 max-w-[160px]">
-                    <span className="block truncate" title={log.parts_used ?? ''}>
-                      {log.parts_used
-                        ? <span className="flex items-center gap-1">🔩 {log.parts_used}</span>
-                        : <span className="text-gray-300">—</span>
-                      }
-                    </span>
-                  </td>
-
-                  {/* Technician */}
-                  <td className="px-3 py-2.5 text-xs text-gray-700 whitespace-nowrap">
-                    {(log.technician as any)?.name ?? <span className="text-gray-300">Unassigned</span>}
                   </td>
                 </tr>
               );
@@ -260,7 +243,7 @@ export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
               <td className="px-3 py-2.5 text-right text-xs font-semibold text-blue-600 tabular-nums">
                 {avgMttr != null ? `avg ${fmtMinutes(avgMttr)}` : ''}
               </td>
-              <td colSpan={3} />
+              <td />
             </tr>
           </tfoot>
 
