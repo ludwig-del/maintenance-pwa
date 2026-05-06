@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation';
 import MachineGrid from '@/components/admin/MachineGrid';
 import AnalyticsDashboard from '@/components/admin/AnalyticsDashboard';
 import DowntimeLog from '@/components/shared/DowntimeLog';
-import TestEmailButton from '@/components/admin/TestEmailButton';
 
 export default async function AdminPage() {
   const supabase = createClient();
@@ -24,10 +23,7 @@ export default async function AdminPage() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-start justify-between mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Admin Dashboard</h1>
-          <TestEmailButton />
-        </div>
+        <h1 className="text-2xl font-bold text-gray-800 mb-8">Admin Dashboard</h1>
 
         <section className="mb-10">
           <h2 className="text-base font-semibold text-gray-600 uppercase tracking-wide mb-4">

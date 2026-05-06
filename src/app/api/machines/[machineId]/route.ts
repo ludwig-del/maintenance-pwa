@@ -55,6 +55,9 @@ export async function DELETE(
       );
     }
 
+    // Delete resolved tickets first to satisfy FK constraint, then delete machine
+    await supabaseAdmin.from('tickets').delete().eq('machine_id', params.machineId);
+
     const { error } = await supabaseAdmin
       .from('machines')
       .delete()
