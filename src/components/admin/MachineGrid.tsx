@@ -278,19 +278,41 @@ export default function MachineGrid() {
       <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
         {machines.map((m) => (
           <div key={m.machine_id} className="relative group">
-            {/* Card */}
-            <button
-              onClick={() => openQr(m)}
-              className={`w-full border-2 rounded-xl text-center transition-all hover:scale-105 hover:shadow-md overflow-hidden ${STATUS_STYLES[m.status]}`}
-            >
-              {m.photo_url && (
-                <img src={m.photo_url} alt={m.name} className="w-full h-14 object-cover" />
-              )}
-              <div className="p-2.5">
+
+            {m.photo_url ? (
+              /* ── Photo card ── */
+              <button
+                onClick={() => openQr(m)}
+                className={`w-full rounded-xl border-2 overflow-hidden transition-all hover:scale-105 hover:shadow-lg relative ${STATUS_STYLES[m.status]}`}
+                style={{ minHeight: '90px' }}
+              >
+                {/* Photo background */}
+                <img
+                  src={m.photo_url}
+                  alt={m.name}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                {/* Gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                {/* Status dot top-left */}
+                <span className={`absolute top-1.5 left-1.5 w-2 h-2 rounded-full border border-white/60 ${STATUS_DOT[m.status]}`} />
+                {/* Text bottom */}
+                <div className="relative z-10 p-2 pt-6 text-left">
+                  <p className="font-bold text-xs text-white leading-tight drop-shadow">{m.name}</p>
+                  <p className="text-xs text-white/70 mt-0.5 leading-tight">{m.location}</p>
+                </div>
+              </button>
+            ) : (
+              /* ── No-photo card ── */
+              <button
+                onClick={() => openQr(m)}
+                className={`w-full border-2 rounded-xl p-2.5 text-center transition-all hover:scale-105 hover:shadow-md ${STATUS_STYLES[m.status]}`}
+              >
+                <span className={`w-2 h-2 rounded-full inline-block mb-1 ${STATUS_DOT[m.status]}`} />
                 <p className="font-bold text-xs leading-tight">{m.name}</p>
                 <p className="text-xs opacity-60 mt-0.5">{m.location}</p>
-              </div>
-            </button>
+              </button>
+            )}
 
             {/* Edit button overlay */}
             <button

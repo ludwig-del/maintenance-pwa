@@ -52,15 +52,11 @@ export default function TaskBoard({ currentUser }: { currentUser: User }) {
   }, [fetchTickets, supabase]);
 
   const handleClaim = async (ticketId: string) => {
-    await supabase
-      .from('tickets')
-      .update({
-        status:        'In Progress',
-        technician_id: currentUser.user_id,
-        started_at:    new Date().toISOString(),
-      })
-      .eq('ticket_id', ticketId)
-      .eq('status', 'Pending');
+    await fetch(`/api/tickets/${ticketId}/claim`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ technician_id: currentUser.user_id }),
+    });
     fetchTickets();
   };
 
