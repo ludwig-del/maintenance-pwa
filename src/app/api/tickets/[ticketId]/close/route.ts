@@ -42,20 +42,23 @@ export async function PATCH(
 
     if (updateErr) throw updateErr;
 
-    // Check if machine still has other open tickets before resetting status
+    // Recalculate machine status from remaining open tickets
     const { data: openTickets } = await supabaseAdmin
       .from('tickets')
-      .select('ticket_id')
+      .select('ticket_id, severity')
       .eq('machine_id', ticket.machine_id)
       .in('status', ['Pending', 'In Progress'])
       .neq('ticket_id', params.ticketId);
 
-    if (!openTickets?.length) {
-      await supabaseAdmin
-        .from('machines')
-        .update({ status: 'active' })
-        .eq('machine_id', ticket.machine_id);
+    let newMachineStatus: 'active' | 'down' | 'maintenance' = 'active';
+    if (openTickets?.length) {
+      newMachineStatus = openTickets.some((t: any) => t.severity === 'High') ? 'down' : 'maintenance';
     }
+
+    await supabaseAdmin
+      .from('machines')
+      .update({ status: newMachineStatus })
+      .eq('machine_id', ticket.machine_id);
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

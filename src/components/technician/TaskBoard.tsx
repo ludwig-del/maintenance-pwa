@@ -30,7 +30,7 @@ export default function TaskBoard({ currentUser }: { currentUser: User }) {
   const fetchTickets = useCallback(async () => {
     const { data } = await supabase
       .from('tickets')
-      .select('*, machines(name, location), users!operator_id(name)')
+      .select('*, machines(name, location), users!operator_id(name), technician:users!technician_id(name)')
       .in('status', ['Pending', 'In Progress'])
       .order('created_at', { ascending: true });
 

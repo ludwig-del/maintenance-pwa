@@ -34,16 +34,30 @@ export default function MachineGrid() {
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase.from('machines').select('*').order('name');
-      if (data) setMachines(data as Machine[]);
+      if (data) {
+        setMachines(data as Machine[]);
+        // Keep modal in sync if a machine is selected
+        setSelected((prev) =>
+          prev ? (data.find((m) => m.machine_id === prev.machine_id) as Machine ?? prev) : null
+        );
+      }
     };
     load();
 
+    // Real-time: any change to machines or tickets triggers a reload
     const channel = supabase
       .channel('machine-status')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'machines' }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'machines' }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, load)
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    // Polling fallback every 15s — catches updates if real-time publication isn't enabled
+    const poll = setInterval(load, 15_000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(poll);
+    };
   }, [supabase]);
 
   const counts = {

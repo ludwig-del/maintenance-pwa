@@ -32,11 +32,11 @@ interface Props {
 }
 
 function SignedImage({ imageUrl }: { imageUrl: string }) {
-  const supabase = createClient();
-  const [src, setSrc] = useState<string | null>(null);
+  const supabase   = createClient();
+  const [src, setSrc]         = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState(false);
 
   useEffect(() => {
-    // Extract storage path from the full URL
     const marker = '/ticket-images/';
     const idx = imageUrl.indexOf(marker);
     if (idx === -1) { setSrc(imageUrl); return; }
@@ -44,24 +44,52 @@ function SignedImage({ imageUrl }: { imageUrl: string }) {
     const path = imageUrl.slice(idx + marker.length);
     supabase.storage
       .from('ticket-images')
-      .createSignedUrl(path, 60 * 60) // 1-hour signed URL
+      .createSignedUrl(path, 60 * 60)
       .then(({ data }) => { if (data?.signedUrl) setSrc(data.signedUrl); });
   }, [imageUrl, supabase]);
 
-  if (!src) return (
-    <div className="w-full h-28 bg-gray-100 rounded-xl mb-3 animate-pulse" />
-  );
+  if (!src) return <div className="w-full h-28 bg-gray-100 rounded-xl mb-3 animate-pulse" />;
 
   return (
-    <img src={src} alt="issue" className="w-full h-28 object-cover rounded-xl mb-3" />
+    <>
+      <button
+        type="button"
+        onClick={() => setLightbox(true)}
+        className="w-full mb-3 rounded-xl overflow-hidden focus:outline-none"
+        title="Tap to view full image"
+      >
+        <img src={src} alt="issue" className="w-full h-28 object-cover" />
+      </button>
+
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setLightbox(false)}
+        >
+          <img
+            src={src}
+            alt="issue full"
+            className="max-w-full max-h-full rounded-xl object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            onClick={() => setLightbox(false)}
+            className="absolute top-4 right-4 text-white bg-white/20 rounded-full w-9 h-9 flex items-center justify-center text-xl font-bold"
+          >
+            ×
+          </button>
+        </div>
+      )}
+    </>
   );
 }
 
 export default function TaskCard({ ticket, currentUserId, onClaim, onClose }: Props) {
-  const isOwnTask   = ticket.technician_id === currentUserId;
-  const age         = formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true });
-  const machineName = (ticket as any).machines?.name ?? ticket.machine_id;
-  const location    = (ticket as any).machines?.location ?? '';
+  const isOwnTask      = ticket.technician_id === currentUserId;
+  const age            = formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true });
+  const machineName    = (ticket as any).machines?.name ?? ticket.machine_id;
+  const location       = (ticket as any).machines?.location ?? '';
+  const technicianName = (ticket as any).technician?.name as string | undefined;
 
   return (
     <div className={`bg-white rounded-2xl shadow-sm border-l-4 p-4 ${SEVERITY_BORDER[ticket.severity]}`}>
@@ -112,7 +140,7 @@ export default function TaskCard({ ticket, currentUserId, onClaim, onClose }: Pr
       {ticket.status === 'In Progress' && (
         <div className="flex flex-col gap-2">
           <p className="text-xs text-center font-medium text-orange-600">
-            {isOwnTask ? '✅ Assigned to you' : '🔧 Claimed by another technician'}
+            {isOwnTask ? '✅ Assigned to you' : `🔧 Claimed by ${technicianName ?? 'another technician'}`}
           </p>
           {isOwnTask && onClose && (
             <button
