@@ -10,6 +10,7 @@ export interface Machine {
   location: string;
   status: MachineStatus;
   qr_code_url: string | null;
+  photo_url: string | null;
   created_at: string;
 }
 

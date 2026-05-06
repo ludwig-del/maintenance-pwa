@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import QRCode from 'react-qr-code';
-import { X, Download, Printer } from 'lucide-react';
+import { X, Download, Printer, Pencil, Trash2, Plus, Camera, AlertTriangle } from 'lucide-react';
 import type { Machine } from '@/types';
 
 const STATUS_STYLES: Record<string, string> = {
@@ -24,48 +24,202 @@ const STATUS_LABEL: Record<string, string> = {
   maintenance: 'Maintenance',
 };
 
+// ─── Photo upload helper ────────────────────────────────────────────────────
+async function uploadMachinePhoto(supabase: ReturnType<typeof createClient>, machineId: string, file: File): Promise<string> {
+  const ext  = file.name.split('.').pop();
+  const path = `machine-photos/${machineId}.${ext}`;
+  const { error } = await supabase.storage
+    .from('ticket-images')
+    .upload(path, file, { upsert: true });
+  if (error) throw error;
+  const { data } = supabase.storage.from('ticket-images').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+// ─── Photo picker sub-component ─────────────────────────────────────────────
+function PhotoPicker({
+  current, onFile,
+}: { current: string | null; onFile: (f: File, preview: string) => void }) {
+  return (
+    <div className="relative">
+      {current ? (
+        <div className="relative w-full h-32 rounded-xl overflow-hidden">
+          <img src={current} alt="machine" className="w-full h-full object-cover" />
+          <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity cursor-pointer rounded-xl">
+            <span className="text-white text-xs font-semibold flex items-center gap-1">
+              <Camera className="w-4 h-4" /> Change photo
+            </span>
+            <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onFile(f, URL.createObjectURL(f));
+            }} />
+          </label>
+        </div>
+      ) : (
+        <label className="flex flex-col items-center gap-2 w-full border-2 border-dashed border-gray-300 rounded-xl py-6 cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-colors">
+          <Camera className="w-7 h-7 text-gray-400" />
+          <span className="text-xs text-gray-500">Add machine photo <span className="text-gray-400">(optional)</span></span>
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onFile(f, URL.createObjectURL(f));
+          }} />
+        </label>
+      )}
+    </div>
+  );
+}
+
+// ─── Main component ──────────────────────────────────────────────────────────
 export default function MachineGrid() {
   const supabase = createClient();
   const [machines, setMachines] = useState<Machine[]>([]);
+
+  // Modal state
+  type View = 'qr' | 'edit' | null;
   const [selected, setSelected] = useState<Machine | null>(null);
-  const qrRef = useRef<HTMLDivElement>(null);
+  const [view, setView]         = useState<View>(null);
+  const [addOpen, setAddOpen]   = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
+
+  // Shared async state
+  const [saving, setSaving]   = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [err, setErr]         = useState<string | null>(null);
+
+  // Edit form
+  const [eName, setEName]         = useState('');
+  const [eLoc, setELoc]           = useState('');
+  const [eFile, setEFile]         = useState<File | null>(null);
+  const [ePreview, setEPreview]   = useState<string | null>(null);
+
+  // Add form
+  const [aName, setAName]         = useState('');
+  const [aLoc, setALoc]           = useState('');
+  const [aFile, setAFile]         = useState<File | null>(null);
+  const [aPreview, setAPreview]   = useState<string | null>(null);
+
+  const qrRef  = useRef<HTMLDivElement>(null);
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
-  useEffect(() => {
-    const load = async () => {
-      const { data } = await supabase.from('machines').select('*').order('name');
-      if (data) {
-        setMachines(data as Machine[]);
-        // Keep modal in sync if a machine is selected
-        setSelected((prev) =>
-          prev ? (data.find((m) => m.machine_id === prev.machine_id) as Machine ?? prev) : null
-        );
-      }
-    };
-    load();
+  // ── Data loading ────────────────────────────────────────────────────────
+  const load = async () => {
+    const { data } = await supabase.from('machines').select('*').order('name');
+    if (data) {
+      setMachines(data as Machine[]);
+      setSelected((prev) =>
+        prev ? (data.find((m) => m.machine_id === prev.machine_id) as Machine ?? prev) : null
+      );
+    }
+  };
 
-    // Real-time: any change to machines or tickets triggers a reload
+  useEffect(() => {
+    load();
     const channel = supabase
       .channel('machine-status')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'machines' }, load)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, load)
       .subscribe();
-
-    // Polling fallback every 15s — catches updates if real-time publication isn't enabled
     const poll = setInterval(load, 15_000);
-
-    return () => {
-      supabase.removeChannel(channel);
-      clearInterval(poll);
-    };
+    return () => { supabase.removeChannel(channel); clearInterval(poll); };
   }, [supabase]);
 
-  const counts = {
-    active:      machines.filter((m) => m.status === 'active').length,
-    down:        machines.filter((m) => m.status === 'down').length,
-    maintenance: machines.filter((m) => m.status === 'maintenance').length,
+  // ── Open helpers ────────────────────────────────────────────────────────
+  const openQr = (m: Machine) => {
+    setSelected(m); setView('qr'); setErr(null); setConfirmDel(false);
   };
 
+  const openEdit = (m: Machine) => {
+    setSelected(m);
+    setEName(m.name); setELoc(m.location);
+    setEFile(null);   setEPreview(m.photo_url);
+    setErr(null);     setView('edit');
+  };
+
+  const openAdd = () => {
+    setAName(''); setALoc(''); setAFile(null); setAPreview(null);
+    setErr(null); setAddOpen(true);
+  };
+
+  const closeAll = () => {
+    setView(null); setSelected(null); setAddOpen(false);
+    setConfirmDel(false); setErr(null);
+  };
+
+  // ── Save edit ────────────────────────────────────────────────────────────
+  const handleSaveEdit = async () => {
+    if (!selected) return;
+    setSaving(true); setErr(null);
+    try {
+      let photo_url = selected.photo_url;
+      if (eFile) photo_url = await uploadMachinePhoto(supabase, selected.machine_id, eFile);
+
+      const res = await fetch(`/api/machines/${selected.machine_id}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ name: eName, location: eLoc, photo_url }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      await load();
+      setView('qr');
+    } catch (e: any) {
+      setErr(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Add machine ──────────────────────────────────────────────────────────
+  const handleAdd = async () => {
+    setSaving(true); setErr(null);
+    try {
+      // Create machine first to get machine_id
+      const res = await fetch('/api/machines', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ name: aName, location: aLoc }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+
+      // Upload photo if provided
+      if (aFile) {
+        const photo_url = await uploadMachinePhoto(supabase, json.machine_id, aFile);
+        await fetch(`/api/machines/${json.machine_id}`, {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ name: aName, location: aLoc, photo_url }),
+        });
+      }
+
+      await load();
+      setAddOpen(false);
+    } catch (e: any) {
+      setErr(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Delete machine ───────────────────────────────────────────────────────
+  const handleDelete = async () => {
+    if (!selected) return;
+    setDeleting(true); setErr(null);
+    try {
+      const res  = await fetch(`/api/machines/${selected.machine_id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      await load();
+      closeAll();
+    } catch (e: any) {
+      setErr(e.message);
+      setConfirmDel(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // ── QR helpers ───────────────────────────────────────────────────────────
   const downloadQR = (machine: Machine) => {
     const svg = qrRef.current?.querySelector('svg');
     if (!svg) return;
@@ -75,9 +229,7 @@ export default function MachineGrid() {
     const blob = new Blob([clone.outerHTML], { type: 'image/svg+xml' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
-    a.href = url;
-    a.download = `${machine.name}-QR.svg`;
-    a.click();
+    a.href = url; a.download = `${machine.name}-QR.svg`; a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -88,105 +240,274 @@ export default function MachineGrid() {
     if (!win) return;
     win.document.write(`
       <html><head><title>${machine.name} QR Code</title>
-      <style>
-        body{display:flex;flex-direction:column;align-items:center;justify-content:center;
-             height:100vh;margin:0;font-family:sans-serif;}
-        h2{margin:16px 0 4px;font-size:22px;}
-        p{color:#666;margin:0;}
-      </style></head>
-      <body>
-        ${svg.outerHTML}
-        <h2>${machine.name}</h2>
-        <p>${machine.location}</p>
-        <script>window.onload=()=>{window.print();window.close();}<\/script>
-      </body></html>
+      <style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;
+        height:100vh;margin:0;font-family:sans-serif;}h2{margin:16px 0 4px;font-size:22px;}p{color:#666;margin:0;}</style>
+      </head><body>${svg.outerHTML}<h2>${machine.name}</h2><p>${machine.location}</p>
+      <script>window.onload=()=>{window.print();window.close()}<\/script></body></html>
     `);
   };
 
+  const counts = {
+    active:      machines.filter((m) => m.status === 'active').length,
+    down:        machines.filter((m) => m.status === 'down').length,
+    maintenance: machines.filter((m) => m.status === 'maintenance').length,
+  };
+
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-      {/* Legend */}
-      <div className="flex gap-5 mb-5 text-xs font-medium">
+
+      {/* Legend + Add button */}
+      <div className="flex flex-wrap gap-4 mb-5 text-xs font-medium items-center">
         {(['active', 'down', 'maintenance'] as const).map((s) => (
           <span key={s} className="flex items-center gap-1.5 capitalize text-gray-600">
             <span className={`w-2.5 h-2.5 rounded-full inline-block ${STATUS_DOT[s]}`} />
             {s} ({counts[s]})
           </span>
         ))}
-        <span className="ml-auto text-gray-400 italic">click machine to view QR</span>
+        <span className="text-gray-400 italic hidden sm:inline">click machine → QR code</span>
+        <button
+          onClick={openAdd}
+          className="ml-auto flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+        >
+          <Plus className="w-3.5 h-3.5" /> Add Machine
+        </button>
       </div>
 
       {/* Grid */}
       <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
         {machines.map((m) => (
-          <button
-            key={m.machine_id}
-            onClick={() => setSelected(m)}
-            className={`border-2 rounded-xl p-2.5 text-center transition-all hover:scale-105 hover:shadow-md ${STATUS_STYLES[m.status]}`}
-          >
-            <p className="font-bold text-xs leading-tight">{m.name}</p>
-            <p className="text-xs opacity-60 mt-0.5">{m.location}</p>
-          </button>
+          <div key={m.machine_id} className="relative group">
+            {/* Card */}
+            <button
+              onClick={() => openQr(m)}
+              className={`w-full border-2 rounded-xl text-center transition-all hover:scale-105 hover:shadow-md overflow-hidden ${STATUS_STYLES[m.status]}`}
+            >
+              {m.photo_url && (
+                <img src={m.photo_url} alt={m.name} className="w-full h-14 object-cover" />
+              )}
+              <div className="p-2.5">
+                <p className="font-bold text-xs leading-tight">{m.name}</p>
+                <p className="text-xs opacity-60 mt-0.5">{m.location}</p>
+              </div>
+            </button>
+
+            {/* Edit button overlay */}
+            <button
+              onClick={(e) => { e.stopPropagation(); openEdit(m); }}
+              className="absolute top-1.5 right-1.5 p-1 rounded-md bg-white/80 hover:bg-white shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Edit machine"
+            >
+              <Pencil className="w-3 h-3 text-gray-600" />
+            </button>
+          </div>
         ))}
       </div>
 
-      {/* QR Modal */}
-      {selected && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
-          onClick={() => setSelected(null)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-xs p-6 flex flex-col items-center gap-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-start justify-between w-full">
-              <div>
-                <p className="font-bold text-gray-800 text-lg">{selected.name}</p>
-                <p className="text-xs text-gray-400">{selected.location}</p>
-                <span className={`inline-flex items-center gap-1.5 mt-1.5 text-xs font-semibold px-2 py-0.5 rounded-full
-                  ${selected.status === 'active' ? 'bg-green-100 text-green-700' :
-                    selected.status === 'down'   ? 'bg-red-100 text-red-700' :
-                                                   'bg-yellow-100 text-yellow-700'}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[selected.status]}`} />
-                  {STATUS_LABEL[selected.status]}
-                </span>
+      {/* ── QR Modal ─────────────────────────────────────────────────────── */}
+      {selected && view === 'qr' && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={closeAll}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+
+            {/* Machine photo */}
+            {selected.photo_url && (
+              <img src={selected.photo_url} alt={selected.name} className="w-full h-36 object-cover" />
+            )}
+
+            <div className="p-5 flex flex-col items-center gap-4">
+              {/* Header */}
+              <div className="flex items-start justify-between w-full">
+                <div>
+                  <p className="font-bold text-gray-800 text-lg">{selected.name}</p>
+                  <p className="text-xs text-gray-400">{selected.location}</p>
+                  <span className={`inline-flex items-center gap-1.5 mt-1.5 text-xs font-semibold px-2 py-0.5 rounded-full
+                    ${selected.status === 'active' ? 'bg-green-100 text-green-700' :
+                      selected.status === 'down'   ? 'bg-red-100 text-red-700' :
+                                                     'bg-yellow-100 text-yellow-700'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[selected.status]}`} />
+                    {STATUS_LABEL[selected.status]}
+                  </span>
+                </div>
+                <button onClick={closeAll} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button
-                onClick={() => setSelected(null)}
-                className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400"
-              >
+
+              {/* QR Code */}
+              <div ref={qrRef} className="bg-white p-4 rounded-xl border-2 border-gray-100">
+                <QRCode value={`${baseUrl}/report/${selected.machine_id}`} size={170} level="H" />
+              </div>
+              <p className="text-xs text-gray-300 text-center break-all leading-tight">
+                {baseUrl}/report/{selected.machine_id}
+              </p>
+
+              {/* QR actions */}
+              <div className="flex gap-2 w-full">
+                <button onClick={() => downloadQR(selected)} className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-xl text-sm transition-colors">
+                  <Download className="w-4 h-4" /> Download
+                </button>
+                <button onClick={() => printQR(selected)} className="flex-1 flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-600 font-semibold py-2 rounded-xl text-sm transition-colors">
+                  <Printer className="w-4 h-4" /> Print
+                </button>
+              </div>
+
+              {/* Divider */}
+              <div className="w-full border-t border-gray-100" />
+
+              {/* Manage actions */}
+              {!confirmDel ? (
+                <div className="flex gap-2 w-full">
+                  <button
+                    onClick={() => openEdit(selected)}
+                    className="flex-1 flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold py-2 rounded-xl text-sm transition-colors"
+                  >
+                    <Pencil className="w-4 h-4" /> Edit
+                  </button>
+                  <button
+                    onClick={() => setConfirmDel(true)}
+                    className="flex-1 flex items-center justify-center gap-2 border border-red-200 hover:bg-red-50 text-red-600 font-semibold py-2 rounded-xl text-sm transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" /> Delete
+                  </button>
+                </div>
+              ) : (
+                <div className="w-full space-y-2">
+                  <p className="text-sm text-center text-gray-700 font-medium">Delete <span className="font-bold">{selected.name}</span>?</p>
+                  <p className="text-xs text-center text-gray-400">This cannot be undone.</p>
+                  {err && <p className="text-xs text-center text-red-600">{err}</p>}
+                  <div className="flex gap-2">
+                    <button onClick={() => { setConfirmDel(false); setErr(null); }} className="flex-1 border border-gray-300 text-gray-600 font-semibold py-2 rounded-xl text-sm hover:bg-gray-50">
+                      Cancel
+                    </button>
+                    <button onClick={handleDelete} disabled={deleting} className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-semibold py-2 rounded-xl text-sm transition-colors">
+                      {deleting ? 'Deleting…' : 'Yes, Delete'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Modal ───────────────────────────────────────────────────── */}
+      {selected && view === 'edit' && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={closeAll}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
+
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-gray-800 text-lg">Edit Machine</h2>
+              <button onClick={closeAll} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* QR Code */}
-            <div ref={qrRef} className="bg-white p-4 rounded-xl border-2 border-gray-100">
-              <QRCode
-                value={`${baseUrl}/report/${selected.machine_id}`}
-                size={190}
-                level="H"
+            {/* Photo */}
+            <PhotoPicker
+              current={ePreview}
+              onFile={(f, p) => { setEFile(f); setEPreview(p); }}
+            />
+
+            {/* Name */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Machine Name</label>
+              <input
+                value={eName}
+                onChange={(e) => setEName(e.target.value)}
+                className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g. CNC-01"
               />
             </div>
 
-            <p className="text-xs text-gray-300 text-center break-all leading-tight">
-              {baseUrl}/report/{selected.machine_id}
-            </p>
+            {/* Location */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Location</label>
+              <input
+                value={eLoc}
+                onChange={(e) => setELoc(e.target.value)}
+                className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g. Line A, Bay 3"
+              />
+            </div>
 
-            {/* Actions */}
-            <div className="flex gap-2 w-full">
-              <button
-                onClick={() => downloadQR(selected)}
-                className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors"
-              >
-                <Download className="w-4 h-4" /> Download
+            {err && (
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-3 py-2 text-xs">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" /> {err}
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => { setView('qr'); setErr(null); }} className="flex-1 border border-gray-300 text-gray-600 font-semibold py-2.5 rounded-xl text-sm hover:bg-gray-50">
+                Cancel
               </button>
               <button
-                onClick={() => printQR(selected)}
-                className="flex-1 flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-600 font-semibold py-2.5 rounded-xl text-sm transition-colors"
+                onClick={handleSaveEdit}
+                disabled={saving || !eName.trim() || !eLoc.trim()}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors"
               >
-                <Printer className="w-4 h-4" /> Print
+                {saving ? 'Saving…' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Machine Modal ─────────────────────────────────────────────── */}
+      {addOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={closeAll}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
+
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-gray-800 text-lg">Add New Machine</h2>
+              <button onClick={closeAll} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Photo */}
+            <PhotoPicker
+              current={aPreview}
+              onFile={(f, p) => { setAFile(f); setAPreview(p); }}
+            />
+
+            {/* Name */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Machine Name</label>
+              <input
+                value={aName}
+                onChange={(e) => setAName(e.target.value)}
+                className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g. CNC-01"
+              />
+            </div>
+
+            {/* Location */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Location</label>
+              <input
+                value={aLoc}
+                onChange={(e) => setALoc(e.target.value)}
+                className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g. Line A, Bay 3"
+              />
+            </div>
+
+            {err && (
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-3 py-2 text-xs">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" /> {err}
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <button onClick={closeAll} className="flex-1 border border-gray-300 text-gray-600 font-semibold py-2.5 rounded-xl text-sm hover:bg-gray-50">
+                Cancel
+              </button>
+              <button
+                onClick={handleAdd}
+                disabled={saving || !aName.trim() || !aLoc.trim()}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+              >
+                {saving ? 'Adding…' : <><Plus className="w-4 h-4" /> Add Machine</>}
               </button>
             </div>
           </div>
