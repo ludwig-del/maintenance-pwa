@@ -36,9 +36,23 @@ export async function DELETE(_req: NextRequest, { params }: { params: { userId: 
   if (!callerId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   if (callerId === params.userId) {
-    return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 });
+    return NextResponse.json({ error: 'Cannot delete your own account.' }, { status: 400 });
   }
 
+  // Check if user has any tickets (FK constraint would block deletion)
+  const { count } = await supabaseAdmin
+    .from('tickets')
+    .select('ticket_id', { count: 'exact', head: true })
+    .or(`operator_id.eq.${params.userId},technician_id.eq.${params.userId}`);
+
+  if (count && count > 0) {
+    // Has tickets — remove from auth only so they can't log in, keep users row for data integrity
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(params.userId);
+    if (authError) return NextResponse.json({ error: authError.message }, { status: 500 });
+    return NextResponse.json({ hasTickets: true }, { status: 200 });
+  }
+
+  // No tickets — safe to fully delete
   const { error: dbError } = await supabaseAdmin
     .from('users')
     .delete()

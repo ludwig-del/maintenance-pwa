@@ -15,6 +15,12 @@ export default async function ReportPage({ params }: Props) {
 
   if (!user) redirect('/login');
 
+  const { data: profile } = await supabase
+    .from('users')
+    .select('name')
+    .eq('user_id', user.id)
+    .single();
+
   const { data: machine } = await supabase
     .from('machines')
     .select('name, location, status')
@@ -59,7 +65,7 @@ export default async function ReportPage({ params }: Props) {
 
       {/* Form card */}
       <div className="flex-1 bg-gray-50 rounded-t-3xl px-5 pt-7 pb-10">
-        <ReportForm machineId={params.machineId} userId={user.id} />
+        <ReportForm machineId={params.machineId} userId={user.id} defaultName={profile?.name ?? ''} />
       </div>
     </main>
   );

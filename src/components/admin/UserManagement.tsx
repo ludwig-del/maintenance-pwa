@@ -60,8 +60,16 @@ export default function UserManagement() {
     setDeletingId(userId);
     setError('');
     const res = await fetch(`/api/users/${userId}`, { method: 'DELETE' });
-    if (!res.ok) setError((await res.json()).error ?? 'Error');
-    else setUsers((prev) => prev.filter((u) => u.user_id !== userId));
+    const json = await res.json();
+    if (!res.ok) {
+      setError(json.error ?? 'Error');
+    } else if (json.hasTickets) {
+      // Auth deleted but users row kept — show as deactivated
+      setUsers((prev) => prev.map((u) => u.user_id === userId ? { ...u, role: 'operator' as UserRole } : u));
+      setError('Login disabled. User kept in system because they have existing tickets.');
+    } else {
+      setUsers((prev) => prev.filter((u) => u.user_id !== userId));
+    }
     setDeletingId(null);
     setConfirmId(null);
   };

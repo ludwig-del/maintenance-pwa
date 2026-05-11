@@ -15,6 +15,8 @@ export const translations = {
       invalidQR:  'Invalid QR code. Please scan again.',
     },
     form: {
+      yourName:        'Your Name',
+      namePH:          'Enter your name',
       issueType:       'Issue Type',
       severity:        'Severity',
       description:     'Description',
@@ -155,6 +157,8 @@ export const translations = {
       invalidQR:  'QR Code ไม่ถูกต้อง กรุณาสแกนใหม่',
     },
     form: {
+      yourName:        'ชื่อของคุณ',
+      namePH:          'กรอกชื่อของคุณ',
       issueType:       'ประเภทปัญหา',
       severity:        'ระดับความรุนแรง',
       description:     'รายละเอียด',
