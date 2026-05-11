@@ -45,6 +45,8 @@ export async function POST(req: NextRequest) {
 
     // Await both notifications before returning — serverless functions can be
     // killed early if we fire-and-forget without waiting for completion
+    const appUrl = new URL(req.url).origin;
+
     await Promise.allSettled([
       sendLineNotify(
         `\n${emoji} [${severity}] New Maintenance Ticket\n` +
@@ -53,7 +55,7 @@ export async function POST(req: NextRequest) {
           (description ? `Note: ${description}\n` : '') +
           `ID: ${ticket.ticket_id}`
       ),
-      sendTechnicianEmails({ machineName, location, severity, issueType: issue_type, description, ticketId: ticket.ticket_id }),
+      sendTechnicianEmails({ machineName, location, severity, issueType: issue_type, description, ticketId: ticket.ticket_id, appUrl }),
     ]);
 
     return NextResponse.json({ ticket_id: ticket.ticket_id }, { status: 201 });
@@ -73,7 +75,7 @@ async function sendLineNotify(message: string) {
 }
 
 async function sendTechnicianEmails({
-  machineName, location, severity, issueType, description, ticketId,
+  machineName, location, severity, issueType, description, ticketId, appUrl,
 }: {
   machineName: string;
   location: string;
@@ -81,6 +83,7 @@ async function sendTechnicianEmails({
   issueType: string;
   description: string | null;
   ticketId: string;
+  appUrl: string;
 }) {
   if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) return;
 
@@ -120,7 +123,15 @@ async function sendTechnicianEmails({
           ${description ? `<tr><td style="padding:6px 12px 6px 0;color:#6b7280">Note</td><td style="padding:6px 0">${description}</td></tr>` : ''}
           <tr><td style="padding:6px 12px 6px 0;color:#6b7280">Ticket ID</td><td style="padding:6px 0;font-size:12px;color:#9ca3af">${ticketId}</td></tr>
         </table>
-        <p style="margin-top:20px;font-size:13px;color:#9ca3af">Open the MaintTrack app to claim this task.</p>
+        <div style="margin-top:24px;text-align:center">
+          <a href="${appUrl}/technician"
+            style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 28px;border-radius:12px;letter-spacing:0.01em">
+            Open MaintTrack →
+          </a>
+        </div>
+        <p style="margin-top:16px;font-size:12px;color:#9ca3af;text-align:center">
+          ${appUrl}/technician
+        </p>
       </div>
     `,
   });
