@@ -81,7 +81,7 @@ export default function AnalyticsDashboard() {
         setTickets(enriched as Ticket[]);
       }
 
-      setAll((trend ?? []) as Ticket[]);
+      setAll((trend ?? []) as unknown as Ticket[]);
       setOpen(count ?? 0);
       setLoading(false);
     }
