@@ -7,17 +7,33 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { useLang } from '@/lib/i18n/LangContext';
 import type { Ticket } from '@/types';
 
-const SEVERITY_COLOR: Record<string, string> = {
-  High:   'text-red-600',
-  Medium: 'text-yellow-600',
-  Low:    'text-green-600',
+// ─── Config ─────────────────────────────────────────────────────────────────
+
+const SEV_GRADIENT: Record<string, string> = {
+  High:   'from-red-900 via-red-800 to-red-900',
+  Medium: 'from-yellow-800 via-yellow-700 to-yellow-800',
+  Low:    'from-green-900 via-green-800 to-green-900',
 };
 
-const SEVERITY_BG: Record<string, string> = {
-  High:   'bg-red-50 border-red-200',
-  Medium: 'bg-yellow-50 border-yellow-200',
-  Low:    'bg-green-50 border-green-200',
+const SEV_BADGE: Record<string, string> = {
+  High:   'bg-red-500/25 border-red-400/40 text-red-200',
+  Medium: 'bg-yellow-500/25 border-yellow-400/40 text-yellow-200',
+  Low:    'bg-green-500/25 border-green-400/40 text-green-200',
 };
+
+const SEV_STRIP: Record<string, string> = {
+  High:   'border-red-300',
+  Medium: 'border-yellow-300',
+  Low:    'border-green-300',
+};
+
+const ISSUE_ICON: Record<string, string> = {
+  Electrical: '⚡',
+  Mechanical: '⚙️',
+  Software:   '💻',
+};
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface HistoryRow {
   ticket_id: string;
@@ -41,11 +57,13 @@ interface Props {
   onCloseTicket?: () => void;
 }
 
+// ─── Component ───────────────────────────────────────────────────────────────
+
 export default function TaskDetailModal({ ticket, currentUserId, onClose, onClaim, onCloseTicket }: Props) {
-  const supabase             = createClient();
-  const { t }                = useLang();
-  const [history, setHistory]           = useState<HistoryRow[]>([]);
-  const [loadingHistory, setLoading]    = useState(true);
+  const supabase                = createClient();
+  const { t }                   = useLang();
+  const [history, setHistory]   = useState<HistoryRow[]>([]);
+  const [loadingHistory, setLoading] = useState(true);
 
   const machineName    = (ticket as any).machines?.name ?? ticket.machine_id;
   const location       = (ticket as any).machines?.location ?? '';
@@ -65,7 +83,6 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
 
       if (!tickets) { setLoading(false); return; }
 
-      // Fetch operator names separately by user_id
       const operatorIds = Array.from(new Set(tickets.map((t: any) => t.operator_id).filter(Boolean)));
       const nameMap: Record<string, string> = {};
       if (operatorIds.length) {
@@ -84,97 +101,96 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
     load();
   }, [ticket.machine_id, supabase]);
 
+  const gradient = SEV_GRADIENT[ticket.severity] ?? SEV_GRADIENT.Medium;
+
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center"
+      className="fixed inset-0 z-50 bg-black/70 flex items-end justify-center"
       onClick={onClose}
     >
       <div
-        className="bg-white w-full max-w-lg rounded-t-3xl max-h-[92vh] flex flex-col"
+        className="bg-white w-full max-w-lg rounded-t-3xl max-h-[92vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-          <div className="w-10 h-1 rounded-full bg-gray-200" />
-        </div>
-
-        {/* Fixed header */}
-        <div className="flex items-start justify-between px-5 pt-2 pb-4 border-b border-gray-100 flex-shrink-0">
-          <div>
-            <p className="font-bold text-gray-800 text-lg leading-tight">{machineName}</p>
-            <p className="text-sm text-gray-400 flex items-center gap-1 mt-0.5">
-              <MapPin className="w-3.5 h-3.5" />{location}
-            </p>
+        {/* ── Dark gradient header ── */}
+        <div className={`bg-gradient-to-br ${gradient} px-5 pt-4 pb-6 text-white relative`}>
+          {/* Drag handle */}
+          <div className="flex justify-center mb-4">
+            <div className="w-10 h-1 rounded-full bg-white/20" />
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 ml-2 flex-shrink-0">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
-        {/* Scrollable content */}
-        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-5 pb-8">
-
-          {/* Current report detail */}
-          <section>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">{t.detail.currentReport}</p>
-            <div className={`rounded-2xl border p-4 space-y-3 ${SEVERITY_BG[ticket.severity]}`}>
-              {/* Severity + issue */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">
-                    {ticket.issue_type === 'Electrical' ? '⚡' : ticket.issue_type === 'Mechanical' ? '⚙️' : '💻'}
-                  </span>
-                  <span className="font-semibold text-gray-700 text-sm">
-                    {t.issueType[ticket.issue_type as keyof typeof t.issueType] ?? ticket.issue_type}
-                  </span>
-                </div>
-                <span className={`font-bold text-sm ${SEVERITY_COLOR[ticket.severity]}`}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-2xl">{ISSUE_ICON[ticket.issue_type] ?? '🔧'}</span>
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${SEV_BADGE[ticket.severity]}`}>
                   {t.severity[ticket.severity as keyof typeof t.severity] ?? ticket.severity}
                 </span>
+                <span className="text-xs font-semibold text-white/50">
+                  {t.issueType[ticket.issue_type as keyof typeof t.issueType] ?? ticket.issue_type}
+                </span>
               </div>
+              <h2 className="text-xl font-black leading-tight">{machineName}</h2>
+              <p className="text-white/60 text-sm flex items-center gap-1 mt-0.5">
+                <MapPin className="w-3.5 h-3.5" />{location}
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors flex-shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
 
-              {/* Info rows */}
-              <div className="text-sm space-y-2 pt-1 border-t border-black/5">
-                <div className="flex items-center gap-2 text-gray-600">
-                  <User className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                  <span className="text-gray-400">{t.detail.reportedBy}</span>
-                  <span className="ml-auto font-medium text-gray-700">{operatorName}</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Clock className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                  <span className="text-gray-400">{t.detail.submitted}</span>
-                  <span className="ml-auto font-medium text-gray-700">
-                    {formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true })}
+        {/* ── Scrollable body ── */}
+        <div className="overflow-y-auto flex-1 px-5 py-5 space-y-6">
+
+          {/* Current report */}
+          <section>
+            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 mb-3">
+              {t.detail.currentReport}
+            </p>
+            <div className="bg-slate-50 rounded-2xl border border-slate-100 divide-y divide-slate-100 overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 text-sm">
+                <User className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                <span className="text-slate-400 text-xs">{t.detail.reportedBy}</span>
+                <span className="ml-auto font-semibold text-slate-700">{operatorName}</span>
+              </div>
+              <div className="flex items-center gap-2 px-4 py-3 text-sm">
+                <Clock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                <span className="text-slate-400 text-xs">{t.detail.submitted}</span>
+                <span className="ml-auto font-semibold text-slate-700">
+                  {formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true })}
+                </span>
+              </div>
+              {ticket.status === 'In Progress' && (
+                <div className="flex items-center gap-2 px-4 py-3 text-sm">
+                  <Wrench className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                  <span className="text-slate-400 text-xs">{t.detail.assignedTo}</span>
+                  <span className={`ml-auto font-semibold ${isOwnTask ? 'text-green-600' : 'text-orange-600'}`}>
+                    {isOwnTask ? t.detail.you : (technicianName ?? t.detail.anotherTech)}
                   </span>
-                </div>
-                {ticket.status === 'In Progress' && (
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Wrench className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                    <span className="text-gray-400">{t.detail.assignedTo}</span>
-                    <span className="ml-auto font-medium text-orange-600">
-                      {isOwnTask ? t.detail.you : (technicianName ?? t.detail.anotherTech)}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Description */}
-              {ticket.description && (
-                <div className="pt-2 border-t border-black/5">
-                  <p className="text-xs text-gray-400 mb-1 flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" /> {t.detail.operatorNote}
-                  </p>
-                  <p className="text-sm text-gray-700">{ticket.description}</p>
                 </div>
               )}
             </div>
+
+            {ticket.description && (
+              <div className="mt-3 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500 flex items-center gap-1 mb-1.5">
+                  <AlertTriangle className="w-3 h-3" /> {t.detail.operatorNote}
+                </p>
+                <p className="text-sm text-slate-700">{ticket.description}</p>
+              </div>
+            )}
           </section>
 
           {/* Actions */}
           {ticket.status === 'Pending' && onClaim && (
             <button
               onClick={() => { onClaim(); onClose(); }}
-              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-3 rounded-xl text-sm transition-all"
+              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-3.5 rounded-2xl text-sm transition-all shadow-sm shadow-blue-200"
             >
               <Wrench className="w-4 h-4" /> {t.detail.claimTask}
             </button>
@@ -182,74 +198,69 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
           {ticket.status === 'In Progress' && isOwnTask && onCloseTicket && (
             <button
               onClick={() => { onCloseTicket(); onClose(); }}
-              className="w-full bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-3 rounded-xl text-sm transition-all"
+              className="w-full bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-3.5 rounded-2xl text-sm transition-all shadow-sm shadow-green-200"
             >
               {t.detail.closeTask}
             </button>
           )}
 
-          {/* Machine repair history */}
+          {/* Repair history */}
           <section>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 mb-3">
               {t.detail.repairHistory} {machineName}
             </p>
 
             {loadingHistory ? (
               <div className="space-y-2">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-20 bg-gray-100 rounded-2xl animate-pulse" />
+                  <div key={i} className="h-20 bg-slate-100 rounded-2xl animate-pulse" />
                 ))}
               </div>
             ) : history.length === 0 ? (
-              <div className="text-center py-10 text-gray-400 text-sm bg-gray-50 rounded-2xl border border-gray-100">
+              <div className="text-center py-10 text-slate-400 text-sm bg-slate-50 rounded-2xl border border-slate-100">
                 {t.detail.noHistory}
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 {history.map((h) => (
-                  <div key={h.ticket_id} className="bg-gray-50 rounded-2xl border border-gray-100 p-4 text-sm">
-                    {/* Row 1: issue + date */}
+                  <div
+                    key={h.ticket_id}
+                    className={`bg-slate-50 rounded-2xl border-l-4 border border-slate-100 p-4 text-sm ${SEV_STRIP[h.severity] ?? 'border-l-slate-200'}`}
+                  >
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-gray-700 flex items-center gap-1.5">
-                        <span>
-                          {h.issue_type === 'Electrical' ? '⚡' : h.issue_type === 'Mechanical' ? '⚙️' : '💻'}
-                        </span>
+                      <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                        {ISSUE_ICON[h.issue_type] ?? '🔧'}
                         {t.issueType[h.issue_type as keyof typeof t.issueType] ?? h.issue_type}
                       </span>
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-slate-400">
                         {h.resolved_at ? format(new Date(h.resolved_at), 'dd MMM yyyy') : '—'}
                       </span>
                     </div>
 
-                    {/* Root cause */}
                     {h.root_cause && (
-                      <p className="text-gray-600 mb-1">
-                        <span className="text-gray-400 text-xs">{t.detail.rootCause} </span>{h.root_cause}
+                      <p className="text-slate-600 mb-1">
+                        <span className="text-slate-400 text-xs">{t.detail.rootCause} </span>{h.root_cause}
                       </p>
                     )}
-
-                    {/* Parts */}
                     {h.parts_used && (
-                      <p className="text-gray-600 mb-1">
-                        <span className="text-gray-400 text-xs">{t.detail.parts} </span>{h.parts_used}
+                      <p className="text-slate-600 mb-1">
+                        <span className="text-slate-400 text-xs">{t.detail.parts} </span>{h.parts_used}
                       </p>
                     )}
 
-                    {/* Reporter name — from operator join or parsed from description [Name] prefix */}
                     {(() => {
-                      const operatorName = (h.operator as any)?.name;
+                      const opName = (h.operator as any)?.name;
                       const descName = h.description?.match(/^\[(.+?)\]/)?.[1];
-                      const reporter = operatorName || descName;
+                      const reporter = opName || descName;
                       return reporter ? (
-                        <div className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 rounded-lg px-2 py-1 mt-2">
+                        <div className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 rounded-lg px-2 py-1 mt-2 w-fit">
                           <User className="w-3 h-3 flex-shrink-0" />
-                          <span>{t.detail.reportedBy}: <span className="font-semibold">{reporter}</span></span>
+                          {t.detail.reportedBy}: <span className="font-semibold">{reporter}</span>
                         </div>
                       ) : null;
                     })()}
 
-                    {/* Footer: repair time + technician + severity */}
-                    <div className="flex items-center gap-3 text-xs text-gray-400 mt-2 pt-2 border-t border-gray-200">
+                    <div className="flex items-center gap-3 text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200">
                       {h.repair_time_minutes != null && (
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />{h.repair_time_minutes} min
@@ -260,9 +271,6 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
                           <Wrench className="w-3 h-3" />{(h.technician as any).name}
                         </span>
                       )}
-                      <span className={`ml-auto font-semibold ${SEVERITY_COLOR[h.severity]}`}>
-                        {t.severity[h.severity as keyof typeof t.severity] ?? h.severity}
-                      </span>
                     </div>
                   </div>
                 ))}

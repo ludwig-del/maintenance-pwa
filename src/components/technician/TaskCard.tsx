@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { Wrench, Clock, MapPin, User, ChevronRight } from 'lucide-react';
+import { Wrench, Clock, MapPin, User, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useLang } from '@/lib/i18n/LangContext';
 import type { Ticket } from '@/types';
+
+// ─── Config ─────────────────────────────────────────────────────────────────
 
 const SEV_STRIP: Record<string, string> = {
   High:   'bg-red-500',
@@ -14,9 +16,9 @@ const SEV_STRIP: Record<string, string> = {
 };
 
 const SEV_BADGE: Record<string, string> = {
-  High:   'bg-red-100 text-red-700 ring-1 ring-red-200',
-  Medium: 'bg-yellow-100 text-yellow-700 ring-1 ring-yellow-200',
-  Low:    'bg-green-100 text-green-700 ring-1 ring-green-200',
+  High:   'bg-red-100 text-red-700',
+  Medium: 'bg-yellow-100 text-yellow-700',
+  Low:    'bg-green-100 text-green-700',
 };
 
 const ISSUE_ICON: Record<string, string> = {
@@ -25,17 +27,17 @@ const ISSUE_ICON: Record<string, string> = {
   Software:   '💻',
 };
 
-interface Props {
-  ticket: Ticket;
-  currentUserId: string;
-  onExpand?: () => void;
-  onClaim?: () => void;
-  onClose?: () => void;
-}
+const ISSUE_BG: Record<string, string> = {
+  Electrical: 'bg-amber-100',
+  Mechanical: 'bg-blue-100',
+  Software:   'bg-violet-100',
+};
+
+// ─── SignedImage ─────────────────────────────────────────────────────────────
 
 function SignedImage({ imageUrl }: { imageUrl: string }) {
-  const supabase              = createClient();
-  const [src, setSrc]         = useState<string | null>(null);
+  const supabase                = createClient();
+  const [src, setSrc]           = useState<string | null>(null);
   const [lightbox, setLightbox] = useState(false);
 
   useEffect(() => {
@@ -85,6 +87,16 @@ function SignedImage({ imageUrl }: { imageUrl: string }) {
   );
 }
 
+// ─── TaskCard ────────────────────────────────────────────────────────────────
+
+interface Props {
+  ticket: Ticket;
+  currentUserId: string;
+  onExpand?: () => void;
+  onClaim?: () => void;
+  onClose?: () => void;
+}
+
 export default function TaskCard({ ticket, currentUserId, onExpand, onClaim, onClose }: Props) {
   const { t }          = useLang();
   const isOwnTask      = ticket.technician_id === currentUserId;
@@ -95,19 +107,22 @@ export default function TaskCard({ ticket, currentUserId, onExpand, onClaim, onC
   const technicianName = (ticket as any).technician?.name as string | undefined;
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex">
+    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden flex shadow-sm">
       {/* Severity strip */}
-      <div className={`w-1 flex-shrink-0 ${SEV_STRIP[ticket.severity] ?? 'bg-slate-300'}`} />
+      <div className={`w-1.5 flex-shrink-0 ${SEV_STRIP[ticket.severity] ?? 'bg-slate-300'}`} />
 
-      <div className="flex-1 min-w-0">
-        {/* Tappable area */}
+      <div className="flex-1 min-w-0 p-4">
+        {/* Tappable header */}
         <button
           type="button"
           onClick={onExpand}
-          className="w-full text-left px-4 pt-4 pb-3 focus:outline-none"
+          className="w-full text-left focus:outline-none"
         >
           <div className="flex items-start gap-3">
-            <span className="text-2xl mt-0.5 flex-shrink-0">{ISSUE_ICON[ticket.issue_type] ?? '🔧'}</span>
+            {/* Issue icon in colored box */}
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl ${ISSUE_BG[ticket.issue_type] ?? 'bg-slate-100'}`}>
+              {ISSUE_ICON[ticket.issue_type] ?? '🔧'}
+            </div>
 
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
@@ -119,13 +134,14 @@ export default function TaskCard({ ticket, currentUserId, onExpand, onClaim, onC
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${SEV_BADGE[ticket.severity]}`}>
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${SEV_BADGE[ticket.severity]}`}>
                     {t.severity[ticket.severity as keyof typeof t.severity] ?? ticket.severity}
                   </span>
                   <ChevronRight className="w-4 h-4 text-slate-300" />
                 </div>
               </div>
 
+              {/* Meta row */}
               <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-2 text-xs text-slate-400">
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />{age}
@@ -147,14 +163,14 @@ export default function TaskCard({ ticket, currentUserId, onExpand, onClaim, onC
           </div>
         </button>
 
-        {/* Photo + actions */}
-        <div className="px-4 pb-4">
+        {/* Photo + Actions */}
+        <div className="mt-3">
           {ticket.image_url && <SignedImage imageUrl={ticket.image_url} />}
 
           {ticket.status === 'Pending' && onClaim && (
             <button
               onClick={(e) => { e.stopPropagation(); onClaim(); }}
-              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-2.5 rounded-xl text-sm transition-all"
+              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-2.5 rounded-xl text-sm transition-all shadow-sm shadow-blue-200"
             >
               <Wrench className="w-4 h-4" /> {t.card.claimTask}
             </button>
@@ -162,12 +178,14 @@ export default function TaskCard({ ticket, currentUserId, onExpand, onClaim, onC
 
           {ticket.status === 'In Progress' && (
             <div className="flex flex-col gap-2">
-              <div className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl ${
+              <div className={`flex items-center gap-2 text-xs font-semibold px-3 py-2.5 rounded-xl ${
                 isOwnTask
                   ? 'bg-green-50 text-green-700 border border-green-100'
                   : 'bg-orange-50 text-orange-600 border border-orange-100'
               }`}>
-                <Wrench className="w-3.5 h-3.5 flex-shrink-0" />
+                {isOwnTask
+                  ? <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                  : <Wrench className="w-3.5 h-3.5 flex-shrink-0" />}
                 {isOwnTask
                   ? t.card.assignedToYou
                   : `${t.card.claimedBy} ${technicianName ?? t.card.anotherTech}`}
@@ -175,7 +193,7 @@ export default function TaskCard({ ticket, currentUserId, onExpand, onClaim, onC
               {isOwnTask && onClose && (
                 <button
                   onClick={(e) => { e.stopPropagation(); onClose(); }}
-                  className="w-full bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-2.5 rounded-xl text-sm transition-all"
+                  className="w-full bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-2.5 rounded-xl text-sm transition-all shadow-sm shadow-green-200"
                 >
                   {t.card.closeTask}
                 </button>
