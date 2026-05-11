@@ -9,7 +9,23 @@
       "Bash(npx tsc *)",
       "Bash(node -e \"require\\('googleapis'\\); console.log\\('ok'\\)\")",
       "Bash(npm uninstall)",
-      "Bash(Remove-Item -Recurse -Force \"C:\\\\Users\\\\Asus\\\\Documents\\\\gamgamproject\\\\src\\\\app\\\\api\\\\export\")"
+      "Bash(Remove-Item -Recurse -Force \"C:\\\\Users\\\\Asus\\\\Documents\\\\gamgamproject\\\\src\\\\app\\\\api\\\\export\")",
+      "Skill(update-config)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$status = git -C 'C:\\Users\\Asus\\Documents\\gamgamproject' status --porcelain; if ($status) { $date = Get-Date -Format 'yyyy-MM-dd HH:mm'; git -C 'C:\\Users\\Asus\\Documents\\gamgamproject' add -A; git -C 'C:\\Users\\Asus\\Documents\\gamgamproject' commit -m \"auto: sync changes $date\"; git -C 'C:\\Users\\Asus\\Documents\\gamgamproject' push }",
+            "timeout": 30,
+            "statusMessage": "Pushing to GitHub..."
+          }
+        ]
+      }
     ]
   }
 }

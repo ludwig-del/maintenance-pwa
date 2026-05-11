@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { Wrench, Clock, MapPin } from 'lucide-react';
+import { Wrench, Clock, MapPin, User } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useLang } from '@/lib/i18n/LangContext';
 import type { Ticket } from '@/types';
@@ -92,6 +92,7 @@ export default function TaskCard({ ticket, currentUserId, onExpand, onClaim, onC
   const age            = formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true });
   const machineName    = (ticket as any).machines?.name ?? ticket.machine_id;
   const location       = (ticket as any).machines?.location ?? '';
+  const operatorName   = (ticket as any).users?.name as string | undefined;
   const technicianName = (ticket as any).technician?.name as string | undefined;
 
   return (
@@ -128,6 +129,14 @@ export default function TaskCard({ ticket, currentUserId, onExpand, onClaim, onC
           </span>
           <span className="text-gray-300">•</span>
           <span>{t.issueType[ticket.issue_type as keyof typeof t.issueType] ?? ticket.issue_type}</span>
+          {operatorName && (
+            <>
+              <span className="text-gray-300">•</span>
+              <span className="flex items-center gap-1">
+                <User className="w-3 h-3" />{operatorName}
+              </span>
+            </>
+          )}
           {ticket.description && (
             <>
               <span className="text-gray-300">•</span>
