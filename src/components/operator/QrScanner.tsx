@@ -1,13 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { ScanLine, CameraOff, Loader2 } from 'lucide-react';
 
 type Status = 'loading' | 'scanning' | 'error';
 
 export default function QrScanner() {
-  const router      = useRouter();
   const scannerRef  = useRef<any>(null);
   const [status, setStatus]     = useState<Status>('loading');
   const [errorMsg, setErrorMsg] = useState('');
@@ -31,7 +29,8 @@ export default function QrScanner() {
               const url = new URL(text);
               if (url.pathname.startsWith('/report/')) {
                 scanner.stop().catch(() => {});
-                router.push(url.pathname);
+                // Full page load instead of client-side nav — avoids RSC fetch errors on first scan
+                window.location.href = url.pathname;
               }
             } catch {
               // not a valid URL — keep scanning
@@ -65,7 +64,7 @@ export default function QrScanner() {
       stopped = true;
       scannerRef.current?.stop().catch(() => {});
     };
-  }, [router]);
+  }, []);
 
   return (
     <div className="flex flex-col items-center gap-4">
