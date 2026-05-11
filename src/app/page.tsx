@@ -52,8 +52,8 @@ export default async function HomePage() {
 
         {/* Scanner card — overlapping hero */}
         <div className="px-4 -mt-10 pb-10">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-            <div className="h-1 bg-gradient-to-r from-blue-600 via-blue-400 to-blue-600" />
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200">
+            <div className="h-1 bg-gradient-to-r from-blue-600 via-blue-400 to-blue-600 rounded-t-2xl" />
             <div className="p-5">
               <QrScanner />
             </div>

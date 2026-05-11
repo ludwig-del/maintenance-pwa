@@ -11,7 +11,9 @@
       "Bash(npm uninstall)",
       "Bash(Remove-Item -Recurse -Force \"C:\\\\Users\\\\Asus\\\\Documents\\\\gamgamproject\\\\src\\\\app\\\\api\\\\export\")",
       "Skill(update-config)",
-      "Bash(node -e \"const r = require\\('recharts'\\); console.log\\(['ComposedChart','Line','CartesianGrid'].map\\(k => k + ':' + !!r[k]\\).join\\(', '\\)\\)\")"
+      "Bash(node -e \"const r = require\\('recharts'\\); console.log\\(['ComposedChart','Line','CartesianGrid'].map\\(k => k + ':' + !!r[k]\\).join\\(', '\\)\\)\")",
+      "Bash(node -e \"const lr = require\\('lucide-react'\\); console.log\\('ScanLine:', !!lr.ScanLine\\); console.log\\('Activity:', !!lr.Activity\\); console.log\\('version:', require\\('./node_modules/lucide-react/package.json'\\).version\\)\")",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/html5-qrcode/package.json'\\).version\\)\")"
     ]
   },
   "hooks": {
