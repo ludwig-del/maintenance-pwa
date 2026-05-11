@@ -218,10 +218,18 @@ export default function AnalyticsDashboard() {
           <SectionTitle>Issue Type Distribution</SectionTitle>
           <p className="text-xs text-gray-400 mb-4">Which failure category dominates?</p>
           {tickets.length === 0 ? <Empty /> : (
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={240}>
               <PieChart>
-                <Pie data={issueBreakdown} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                <Pie
+                  data={issueBreakdown}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="48%"
+                  outerRadius={60}
+                  label={({ name, percent }) => percent > 0 ? `${name} ${(percent * 100).toFixed(0)}%` : ''}
+                  labelLine
+                >
                   {issueBreakdown.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
                 </Pie>
                 <Legend />
