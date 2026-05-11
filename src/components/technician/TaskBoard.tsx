@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useLang } from '@/lib/i18n/LangContext';
+import AppNav from '@/components/shared/AppNav';
 import TaskCard from './TaskCard';
 import TaskDetailModal from './TaskDetailModal';
 import CloseTicketModal from './CloseTicketModal';
@@ -67,70 +68,71 @@ export default function TaskBoard({ currentUser }: { currentUser: User }) {
   const totalActive = pending.length + inProgress.length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 pt-8 pb-0">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-xl font-bold text-gray-800">{t.board.title}</h1>
-              <p className="text-sm text-gray-400">{t.board.hi} {currentUser.name}</p>
-            </div>
+    <div className="min-h-screen bg-slate-50">
+      <AppNav name={currentUser.name} role="technician" />
+
+      {/* Sticky tab bar */}
+      <div className="fixed top-14 inset-x-0 z-30 bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-2xl mx-auto px-4 flex">
+          <button
+            onClick={() => setTab('tasks')}
+            className={`flex-1 py-3.5 text-sm font-semibold border-b-2 transition-colors ${
+              tab === 'tasks'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            {t.board.activeTasks}
             {totalActive > 0 && (
-              <span className="bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                {totalActive} {t.board.active}
+              <span className="ml-1.5 bg-blue-100 text-blue-600 text-xs px-1.5 py-0.5 rounded-full">
+                {totalActive}
               </span>
             )}
-          </div>
-
-          {/* Tabs */}
-          <div className="flex">
-            <button
-              onClick={() => setTab('tasks')}
-              className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${
-                tab === 'tasks'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-400 hover:text-gray-600'
-              }`}
-            >
-              {t.board.activeTasks}
-              {totalActive > 0 && (
-                <span className="ml-1.5 bg-blue-100 text-blue-600 text-xs px-1.5 py-0.5 rounded-full">
-                  {totalActive}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setTab('history')}
-              className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${
-                tab === 'history'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-400 hover:text-gray-600'
-              }`}
-            >
-              {t.board.history}
-            </button>
-          </div>
+          </button>
+          <button
+            onClick={() => setTab('history')}
+            className={`flex-1 py-3.5 text-sm font-semibold border-b-2 transition-colors ${
+              tab === 'history'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            {t.board.history}
+          </button>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="p-4 max-w-2xl mx-auto pb-10">
+      {/* Content — clears AppNav (56px) + tab bar (~52px) */}
+      <div className="pt-[108px] px-4 max-w-2xl mx-auto pb-10">
         {tab === 'tasks' ? (
           loading ? (
-            <div className="flex items-center justify-center h-48">
+            <div className="flex items-center justify-center h-48 mt-6">
               <div className="animate-spin w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full" />
             </div>
           ) : (
             <>
+              {/* Stats strip */}
+              {totalActive > 0 && (
+                <div className="grid grid-cols-2 gap-3 mt-4 mb-6">
+                  <div className="bg-white rounded-xl border border-orange-100 shadow-sm p-4 text-center">
+                    <p className="text-3xl font-bold text-orange-500 tabular-nums">{inProgress.length}</p>
+                    <p className="text-xs text-slate-500 mt-1 font-medium">{t.board.inProgress}</p>
+                  </div>
+                  <div className="bg-white rounded-xl border border-blue-100 shadow-sm p-4 text-center">
+                    <p className="text-3xl font-bold text-blue-500 tabular-nums">{pending.length}</p>
+                    <p className="text-xs text-slate-500 mt-1 font-medium">{t.board.pending}</p>
+                  </div>
+                </div>
+              )}
+
               {/* In Progress */}
-              <section className="mb-6 mt-4">
-                <h2 className="text-xs font-semibold text-orange-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <section className="mb-6">
+                <h2 className="text-xs font-bold text-orange-600 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse inline-block" />
                   {t.board.inProgress} ({inProgress.length})
                 </h2>
                 {inProgress.length === 0 ? (
-                  <p className="text-gray-400 text-sm text-center py-6 bg-white rounded-2xl border border-gray-100">
+                  <p className="text-slate-400 text-sm text-center py-8 bg-white rounded-2xl border border-slate-100 shadow-sm">
                     {t.board.noInProgress}
                   </p>
                 ) : (
@@ -150,12 +152,12 @@ export default function TaskBoard({ currentUser }: { currentUser: User }) {
 
               {/* Pending */}
               <section>
-                <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-gray-300 inline-block" />
+                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-slate-300 inline-block" />
                   {t.board.pending} ({pending.length})
                 </h2>
                 {pending.length === 0 ? (
-                  <p className="text-gray-400 text-sm text-center py-6 bg-white rounded-2xl border border-gray-100">
+                  <p className="text-slate-400 text-sm text-center py-8 bg-white rounded-2xl border border-slate-100 shadow-sm">
                     {t.board.noPending}
                   </p>
                 ) : (

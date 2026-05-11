@@ -46,26 +46,35 @@ export default async function ReportPage({ params }: Props) {
   const isDown = machine.status === 'down';
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-blue-600 to-blue-700 flex flex-col">
+    <main className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header */}
-      <div className="px-5 pt-10 pb-6 text-white">
-        <p className="text-blue-200 text-xs font-semibold uppercase tracking-widest mb-1">
+      <div className="bg-gradient-to-br from-blue-700 via-blue-600 to-blue-700 px-5 pt-10 pb-16 text-white relative overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-10"
+          style={{ backgroundImage: 'radial-gradient(circle at 80% 50%, rgba(255,255,255,0.4) 0%, transparent 60%)' }}
+        />
+        <p className="text-blue-200 text-xs font-bold uppercase tracking-widest mb-2 relative">
           <TText en="Maintenance Report" th="แบบฟอร์มแจ้งซ่อม" />
         </p>
-        <h1 className="text-2xl font-bold">{machine.name}</h1>
-        <p className="text-blue-200 text-sm mt-0.5">{machine.location}</p>
+        <h1 className="text-2xl font-bold relative">{machine.name}</h1>
+        <p className="text-blue-200 text-sm mt-0.5 relative">{machine.location}</p>
 
         {isDown && (
-          <div className="mt-3 flex items-center gap-2 bg-red-500/30 border border-red-400/40 text-red-100 text-xs font-semibold px-3 py-2 rounded-xl w-fit">
+          <div className="mt-3 flex items-center gap-2 bg-red-500/30 border border-red-400/40 text-red-100 text-xs font-semibold px-3 py-2 rounded-xl w-fit relative">
             <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse inline-block" />
             <TText en="Machine currently DOWN" th="เครื่องจักรหยุดทำงาน" />
           </div>
         )}
       </div>
 
-      {/* Form card */}
-      <div className="flex-1 bg-gray-50 rounded-t-3xl px-5 pt-7 pb-10">
-        <ReportForm machineId={params.machineId} userId={user.id} defaultName={profile?.name ?? ''} />
+      {/* Form card — overlapping hero */}
+      <div className="px-4 -mt-8 pb-10 flex-1">
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-blue-600 via-blue-400 to-blue-600" />
+          <div className="p-5">
+            <ReportForm machineId={params.machineId} userId={user.id} defaultName={profile?.name ?? ''} />
+          </div>
+        </div>
       </div>
     </main>
   );
