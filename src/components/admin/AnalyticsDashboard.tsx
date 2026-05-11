@@ -67,12 +67,11 @@ export default function AnalyticsDashboard() {
         const techIds = Array.from(
           new Set(resolved.filter((t: any) => t.technician_id).map((t: any) => t.technician_id))
         );
-        const { data: techUsers } = techIds.length
-          ? await supabase.from('users').select('user_id, name').in('user_id', techIds)
-          : { data: [] };
-
         const techMap: Record<string, string> = {};
-        (techUsers ?? []).forEach((u: any) => { techMap[u.user_id] = u.name; });
+        if (techIds.length) {
+          const res = await fetch(`/api/user-names?ids=${techIds.join(',')}`);
+          if (res.ok) Object.assign(techMap, await res.json());
+        }
 
         const enriched = resolved.map((t: any) => ({
           ...t,
