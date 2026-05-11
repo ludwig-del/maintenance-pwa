@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { format } from 'date-fns';
-import { Database, Download, User, Wrench } from 'lucide-react';
+import { Database, Download, User } from 'lucide-react';
 
 interface LogRow {
   ticket_id: string;
@@ -65,8 +65,7 @@ const COLS = [
   { label: 'Issue',       cls: 'min-w-[120px]' },
   { label: 'Severity',    cls: 'w-24  text-center' },
   { label: 'Reported by', cls: 'min-w-[110px]' },
-  { label: 'Fixed by',   cls: 'min-w-[110px]' },
-  { label: 'Reported',   cls: 'min-w-[120px]' },
+  { label: 'Reported',    cls: 'min-w-[120px]' },
   { label: 'Resolved',    cls: 'min-w-[120px]' },
   { label: 'Total Down',  cls: 'w-28  text-right' },
   { label: 'MTTR',        cls: 'w-24  text-right' },
@@ -131,7 +130,7 @@ export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
   }
 
   const exportCSV = () => {
-    const headers = ['#','Machine','Location','Issue','Severity','Reported By','Fixed By','Reported','Resolved','Total Down (min)','MTTR (min)','Root Cause','Parts Used'];
+    const headers = ['#','Machine','Location','Issue','Severity','Reported By','Reported','Resolved','Total Down (min)','MTTR (min)','Root Cause','Parts Used'];
     const rows = logs.map((log, i) => [
       i + 1,
       log.machines?.name ?? log.machine_id,
@@ -139,7 +138,6 @@ export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
       log.issue_type,
       log.severity,
       log.operator?.name ?? '',
-      log.technician?.name ?? '',
       format(new Date(log.created_at), 'yyyy-MM-dd HH:mm'),
       log.resolved_at ? format(new Date(log.resolved_at), 'yyyy-MM-dd HH:mm') : '',
       totalDownMinutes(log.created_at, log.resolved_at) ?? '',
@@ -264,18 +262,6 @@ export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
                     )}
                   </td>
 
-                  {/* Fixed by */}
-                  <td className="px-3 py-2.5">
-                    {log.technician?.name ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-1 rounded-lg whitespace-nowrap">
-                        <Wrench className="w-3 h-3 flex-shrink-0" />
-                        <span className="font-semibold">{log.technician.name}</span>
-                      </span>
-                    ) : (
-                      <span className="text-gray-300 text-xs">—</span>
-                    )}
-                  </td>
-
                   {/* Reported */}
                   <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-600 tabular-nums">
                     {format(new Date(log.created_at), 'dd MMM yy HH:mm')}
@@ -311,7 +297,7 @@ export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
           <tfoot>
             <tr className="bg-gray-50 border-t-2 border-gray-200">
               <td className="w-1 p-0" />
-              <td colSpan={9} className="px-3 py-2.5 text-xs text-gray-400 font-medium">
+              <td colSpan={8} className="px-3 py-2.5 text-xs text-gray-400 font-medium">
                 {logs.length} resolved tickets
               </td>
               <td className="px-3 py-2.5 text-right text-xs font-semibold text-blue-600 tabular-nums">
