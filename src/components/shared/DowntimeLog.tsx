@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { format } from 'date-fns';
-import { Database, Download } from 'lucide-react';
+import { Database, Download, User } from 'lucide-react';
 
 interface LogRow {
   ticket_id: string;
@@ -252,8 +252,15 @@ export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
                   </td>
 
                   {/* Reported by */}
-                  <td className="px-3 py-2.5 text-xs text-gray-700 font-medium whitespace-nowrap">
-                    {log.operator?.name ?? <span className="text-gray-300">—</span>}
+                  <td className="px-3 py-2.5">
+                    {log.operator?.name ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-lg whitespace-nowrap">
+                        <User className="w-3 h-3 flex-shrink-0" />
+                        <span className="font-semibold">{log.operator.name}</span>
+                      </span>
+                    ) : (
+                      <span className="text-gray-300 text-xs">—</span>
+                    )}
                   </td>
 
                   {/* Reported */}
