@@ -36,6 +36,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
+  // Check if email already exists in users table
+  const { data: existing } = await supabaseAdmin
+    .from('users')
+    .select('user_id')
+    .eq('email', email)
+    .maybeSingle();
+
+  if (existing) {
+    return NextResponse.json({ error: 'This email is already registered.' }, { status: 400 });
+  }
+
+  // Check if email already exists in Supabase Auth
+  const { data: authList } = await supabaseAdmin.auth.admin.listUsers();
+  const authExists = authList?.users?.find((u) => u.email === email);
+
+  if (authExists) {
+    // Auth user exists but not in users table — insert the missing row
+    const { error: dbError } = await supabaseAdmin
+      .from('users')
+      .insert({ user_id: authExists.id, name, role, email });
+
+    if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
+    return NextResponse.json({ user_id: authExists.id }, { status: 201 });
+  }
+
+  // Create brand new auth user
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
