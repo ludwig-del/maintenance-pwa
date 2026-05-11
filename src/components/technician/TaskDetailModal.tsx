@@ -66,7 +66,7 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
       if (!tickets) { setLoading(false); return; }
 
       // Fetch operator names separately by user_id
-      const operatorIds = [...new Set(tickets.map((t: any) => t.operator_id).filter(Boolean))];
+      const operatorIds = Array.from(new Set(tickets.map((t: any) => t.operator_id).filter(Boolean)));
       const { data: users } = operatorIds.length
         ? await supabase.from('users').select('user_id, name').in('user_id', operatorIds)
         : { data: [] };

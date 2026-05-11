@@ -94,7 +94,7 @@ export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
 
       if (!tickets) { setLoading(false); return; }
 
-      const operatorIds = [...new Set(tickets.map((t: any) => t.operator_id).filter(Boolean))];
+      const operatorIds = Array.from(new Set(tickets.map((t: any) => t.operator_id).filter(Boolean)));
       const { data: users } = operatorIds.length
         ? await supabase.from('users').select('user_id, name').in('user_id', operatorIds)
         : { data: [] };
