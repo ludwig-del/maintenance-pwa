@@ -29,6 +29,7 @@ interface HistoryRow {
   resolved_at: string | null;
   created_at: string;
   technician: { name: string } | null;
+  operator: { name: string } | null;
 }
 
 interface Props {
@@ -54,7 +55,7 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
   useEffect(() => {
     supabase
       .from('tickets')
-      .select('ticket_id, issue_type, severity, root_cause, parts_used, repair_time_minutes, resolved_at, created_at, technician:users!technician_id(name)')
+      .select('ticket_id, issue_type, severity, root_cause, parts_used, repair_time_minutes, resolved_at, created_at, technician:users!technician_id(name), operator:users!operator_id(name)')
       .eq('machine_id', ticket.machine_id)
       .eq('status', 'Resolved')
       .order('resolved_at', { ascending: false })
@@ -216,7 +217,7 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
                       </p>
                     )}
 
-                    {/* Footer: repair time + technician + severity */}
+                    {/* Footer: repair time + technician + reporter + severity */}
                     <div className="flex items-center gap-3 text-xs text-gray-400 mt-2 pt-2 border-t border-gray-200">
                       {h.repair_time_minutes != null && (
                         <span className="flex items-center gap-1">
@@ -226,6 +227,11 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
                       {(h.technician as any)?.name && (
                         <span className="flex items-center gap-1">
                           <Wrench className="w-3 h-3" />{(h.technician as any).name}
+                        </span>
+                      )}
+                      {(h.operator as any)?.name && (
+                        <span className="flex items-center gap-1">
+                          <User className="w-3 h-3" />{(h.operator as any).name}
                         </span>
                       )}
                       <span className={`ml-auto font-semibold ${SEVERITY_COLOR[h.severity]}`}>
