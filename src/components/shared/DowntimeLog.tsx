@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { format } from 'date-fns';
-import { Database } from 'lucide-react';
+import { Database, Download } from 'lucide-react';
 
 interface LogRow {
   ticket_id: string;
@@ -130,6 +130,32 @@ export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
     );
   }
 
+  const exportCSV = () => {
+    const headers = ['#','Machine','Location','Issue','Severity','Reported By','Reported','Resolved','Total Down (min)','MTTR (min)','Root Cause','Parts Used'];
+    const rows = logs.map((log, i) => [
+      i + 1,
+      log.machines?.name ?? log.machine_id,
+      log.machines?.location ?? '',
+      log.issue_type,
+      log.severity,
+      log.operator?.name ?? '',
+      format(new Date(log.created_at), 'yyyy-MM-dd HH:mm'),
+      log.resolved_at ? format(new Date(log.resolved_at), 'yyyy-MM-dd HH:mm') : '',
+      totalDownMinutes(log.created_at, log.resolved_at) ?? '',
+      log.repair_time_minutes ?? '',
+      (log.root_cause ?? '').replace(/,/g, ';'),
+      (log.parts_used ?? '').replace(/,/g, ';'),
+    ]);
+    const csv = [headers, ...rows].map((r) => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `downtime-log-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const highCount   = logs.filter(l => l.severity === 'High').length;
   const avgMttr     = logs.filter(l => l.repair_time_minutes != null).length
     ? Math.round(logs.reduce((s, l) => s + (l.repair_time_minutes ?? 0), 0) / logs.filter(l => l.repair_time_minutes != null).length)
@@ -144,6 +170,12 @@ export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
           <Database className="w-4 h-4" />
           <span className="text-sm font-semibold text-gray-700">{logs.length} records</span>
         </div>
+        <button
+          onClick={exportCSV}
+          className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
+        >
+          <Download className="w-3.5 h-3.5" /> Export CSV
+        </button>
         <div className="flex items-center gap-4 text-xs text-gray-500">
           <span>
             High severity: <span className="font-semibold text-red-600">{highCount}</span>
