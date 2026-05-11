@@ -60,15 +60,16 @@ function fmtMinutes(minutes: number | null): string {
 }
 
 const COLS = [
-  { label: '#',          cls: 'w-10  text-center' },
-  { label: 'Machine',    cls: 'min-w-[140px]' },
-  { label: 'Issue',      cls: 'min-w-[120px]' },
-  { label: 'Severity',   cls: 'w-24  text-center' },
-  { label: 'Reported',   cls: 'min-w-[120px]' },
-  { label: 'Resolved',   cls: 'min-w-[120px]' },
-  { label: 'Total Down', cls: 'w-28  text-right' },
-  { label: 'MTTR',       cls: 'w-24  text-right' },
-  { label: 'Root Cause', cls: 'min-w-[220px]' },
+  { label: '#',           cls: 'w-10  text-center' },
+  { label: 'Machine',     cls: 'min-w-[140px]' },
+  { label: 'Issue',       cls: 'min-w-[120px]' },
+  { label: 'Severity',    cls: 'w-24  text-center' },
+  { label: 'Reported by', cls: 'min-w-[110px]' },
+  { label: 'Reported',    cls: 'min-w-[120px]' },
+  { label: 'Resolved',    cls: 'min-w-[120px]' },
+  { label: 'Total Down',  cls: 'w-28  text-right' },
+  { label: 'MTTR',        cls: 'w-24  text-right' },
+  { label: 'Root Cause',  cls: 'min-w-[220px]' },
 ];
 
 export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
@@ -77,23 +78,39 @@ export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase
-      .from('tickets')
-      .select(`
-        ticket_id, machine_id, issue_type, severity,
-        created_at, started_at, resolved_at, repair_time_minutes,
-        root_cause, parts_used,
-        machines(name, location),
-        operator:users!operator_id(name),
-        technician:users!technician_id(name)
-      `)
-      .eq('status', 'Resolved')
-      .order('resolved_at', { ascending: false })
-      .limit(limit)
-      .then(({ data }) => {
-        if (data) setLogs(data as unknown as LogRow[]);
-        setLoading(false);
-      });
+    async function load() {
+      const { data: tickets } = await supabase
+        .from('tickets')
+        .select(`
+          ticket_id, machine_id, issue_type, severity,
+          created_at, started_at, resolved_at, repair_time_minutes,
+          root_cause, parts_used, operator_id,
+          machines(name, location),
+          technician:users!technician_id(name)
+        `)
+        .eq('status', 'Resolved')
+        .order('resolved_at', { ascending: false })
+        .limit(limit);
+
+      if (!tickets) { setLoading(false); return; }
+
+      const operatorIds = [...new Set(tickets.map((t: any) => t.operator_id).filter(Boolean))];
+      const { data: users } = operatorIds.length
+        ? await supabase.from('users').select('user_id, name').in('user_id', operatorIds)
+        : { data: [] };
+
+      const nameMap: Record<string, string> = {};
+      (users ?? []).forEach((u: any) => { nameMap[u.user_id] = u.name; });
+
+      const merged = tickets.map((t: any) => ({
+        ...t,
+        operator: nameMap[t.operator_id] ? { name: nameMap[t.operator_id] } : null,
+      }));
+
+      setLogs(merged as unknown as LogRow[]);
+      setLoading(false);
+    }
+    load();
   }, [supabase, limit]);
 
   if (loading) {
@@ -202,6 +219,11 @@ export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
                     </span>
                   </td>
 
+                  {/* Reported by */}
+                  <td className="px-3 py-2.5 text-xs text-gray-700 font-medium whitespace-nowrap">
+                    {log.operator?.name ?? <span className="text-gray-300">—</span>}
+                  </td>
+
                   {/* Reported */}
                   <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-600 tabular-nums">
                     {format(new Date(log.created_at), 'dd MMM yy HH:mm')}
@@ -237,7 +259,7 @@ export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
           <tfoot>
             <tr className="bg-gray-50 border-t-2 border-gray-200">
               <td className="w-1 p-0" />
-              <td colSpan={7} className="px-3 py-2.5 text-xs text-gray-400 font-medium">
+              <td colSpan={8} className="px-3 py-2.5 text-xs text-gray-400 font-medium">
                 {logs.length} resolved tickets
               </td>
               <td className="px-3 py-2.5 text-right text-xs font-semibold text-blue-600 tabular-nums">

@@ -54,17 +54,35 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
   const isOwnTask      = ticket.technician_id === currentUserId;
 
   useEffect(() => {
-    supabase
-      .from('tickets')
-      .select('ticket_id, issue_type, severity, description, root_cause, parts_used, repair_time_minutes, resolved_at, created_at, technician:users!technician_id(name), operator:users!operator_id(name)')
-      .eq('machine_id', ticket.machine_id)
-      .eq('status', 'Resolved')
-      .order('resolved_at', { ascending: false })
-      .limit(15)
-      .then(({ data }) => {
-        if (data) setHistory(data as unknown as HistoryRow[]);
-        setLoading(false);
-      });
+    async function load() {
+      const { data: tickets } = await supabase
+        .from('tickets')
+        .select('ticket_id, issue_type, severity, description, root_cause, parts_used, repair_time_minutes, resolved_at, created_at, operator_id, technician:users!technician_id(name)')
+        .eq('machine_id', ticket.machine_id)
+        .eq('status', 'Resolved')
+        .order('resolved_at', { ascending: false })
+        .limit(15);
+
+      if (!tickets) { setLoading(false); return; }
+
+      // Fetch operator names separately by user_id
+      const operatorIds = [...new Set(tickets.map((t: any) => t.operator_id).filter(Boolean))];
+      const { data: users } = operatorIds.length
+        ? await supabase.from('users').select('user_id, name').in('user_id', operatorIds)
+        : { data: [] };
+
+      const nameMap: Record<string, string> = {};
+      (users ?? []).forEach((u: any) => { nameMap[u.user_id] = u.name; });
+
+      const merged = tickets.map((t: any) => ({
+        ...t,
+        operator: nameMap[t.operator_id] ? { name: nameMap[t.operator_id] } : null,
+      }));
+
+      setHistory(merged as unknown as HistoryRow[]);
+      setLoading(false);
+    }
+    load();
   }, [ticket.machine_id, supabase]);
 
   return (
