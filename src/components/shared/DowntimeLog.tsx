@@ -130,6 +130,12 @@ export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
   }
 
   const exportCSV = () => {
+    const cell = (val: string | number) => {
+      const s = String(val);
+      return '"' + s.replace(/"/g, '""') + '"';
+    };
+    const fmtDate = (iso: string) => format(new Date(iso), 'dd MMM yyyy HH:mm');
+
     const headers = ['#','Machine','Location','Issue','Severity','Reported By','Reported','Resolved','Total Down (min)','MTTR (min)','Root Cause','Parts Used'];
     const rows = logs.map((log, i) => [
       i + 1,
@@ -138,15 +144,16 @@ export default function DowntimeLog({ limit = 30 }: { limit?: number }) {
       log.issue_type,
       log.severity,
       log.operator?.name ?? '',
-      format(new Date(log.created_at), 'yyyy-MM-dd HH:mm'),
-      log.resolved_at ? format(new Date(log.resolved_at), 'yyyy-MM-dd HH:mm') : '',
+      fmtDate(log.created_at),
+      log.resolved_at ? fmtDate(log.resolved_at) : '',
       totalDownMinutes(log.created_at, log.resolved_at) ?? '',
       log.repair_time_minutes ?? '',
-      (log.root_cause ?? '').replace(/,/g, ';'),
-      (log.parts_used ?? '').replace(/,/g, ';'),
+      log.root_cause ?? '',
+      log.parts_used ?? '',
     ]);
-    const csv = [headers, ...rows].map((r) => r.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const csv = [headers, ...rows].map((r) => r.map(cell).join(',')).join('\n');
+    // UTF-8 BOM (﻿) tells Excel to use UTF-8 so non-ASCII characters render correctly
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
