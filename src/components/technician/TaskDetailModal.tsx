@@ -23,6 +23,7 @@ interface HistoryRow {
   ticket_id: string;
   issue_type: string;
   severity: string;
+  description: string | null;
   root_cause: string | null;
   parts_used: string | null;
   repair_time_minutes: number | null;
@@ -55,7 +56,7 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
   useEffect(() => {
     supabase
       .from('tickets')
-      .select('ticket_id, issue_type, severity, root_cause, parts_used, repair_time_minutes, resolved_at, created_at, technician:users!technician_id(name), operator:users!operator_id(name)')
+      .select('ticket_id, issue_type, severity, description, root_cause, parts_used, repair_time_minutes, resolved_at, created_at, technician:users!technician_id(name), operator:users!operator_id(name)')
       .eq('machine_id', ticket.machine_id)
       .eq('status', 'Resolved')
       .order('resolved_at', { ascending: false })
@@ -217,7 +218,20 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
                       </p>
                     )}
 
-                    {/* Footer: repair time + technician + reporter + severity */}
+                    {/* Reporter name — from operator join or parsed from description [Name] prefix */}
+                    {(() => {
+                      const operatorName = (h.operator as any)?.name;
+                      const descName = h.description?.match(/^\[(.+?)\]/)?.[1];
+                      const reporter = operatorName || descName;
+                      return reporter ? (
+                        <div className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 rounded-lg px-2 py-1 mt-2">
+                          <User className="w-3 h-3 flex-shrink-0" />
+                          <span>{t.detail.reportedBy}: <span className="font-semibold">{reporter}</span></span>
+                        </div>
+                      ) : null;
+                    })()}
+
+                    {/* Footer: repair time + technician + severity */}
                     <div className="flex items-center gap-3 text-xs text-gray-400 mt-2 pt-2 border-t border-gray-200">
                       {h.repair_time_minutes != null && (
                         <span className="flex items-center gap-1">
@@ -227,11 +241,6 @@ export default function TaskDetailModal({ ticket, currentUserId, onClose, onClai
                       {(h.technician as any)?.name && (
                         <span className="flex items-center gap-1">
                           <Wrench className="w-3 h-3" />{(h.technician as any).name}
-                        </span>
-                      )}
-                      {(h.operator as any)?.name && (
-                        <span className="flex items-center gap-1">
-                          <User className="w-3 h-3" />{(h.operator as any).name}
                         </span>
                       )}
                       <span className={`ml-auto font-semibold ${SEVERITY_COLOR[h.severity]}`}>
