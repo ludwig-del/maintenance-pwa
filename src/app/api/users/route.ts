@@ -36,32 +36,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
-  // Check if email already exists in users table
-  const { data: existing } = await supabaseAdmin
-    .from('users')
-    .select('user_id')
-    .eq('email', email)
-    .maybeSingle();
+  // Look up auth by email first (source of truth)
+  const { data: authList } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+  const existingAuthUser = authList?.users?.find((u) => u.email === email);
 
-  if (existing) {
-    return NextResponse.json({ error: 'This email is already registered.' }, { status: 400 });
-  }
+  if (existingAuthUser) {
+    // Auth user exists — check if they already have a users table row
+    const { data: existingRow } = await supabaseAdmin
+      .from('users')
+      .select('user_id')
+      .eq('user_id', existingAuthUser.id)
+      .maybeSingle();
 
-  // Check if email already exists in Supabase Auth
-  const { data: authList } = await supabaseAdmin.auth.admin.listUsers();
-  const authExists = authList?.users?.find((u) => u.email === email);
+    if (existingRow) {
+      return NextResponse.json({ error: 'This email is already registered.' }, { status: 400 });
+    }
 
-  if (authExists) {
-    // Auth user exists but not in users table — insert the missing row
+    // Auth exists but no users row — create the missing row (fix orphaned account)
     const { error: dbError } = await supabaseAdmin
       .from('users')
-      .insert({ user_id: authExists.id, name, role, email });
+      .insert({ user_id: existingAuthUser.id, name, role, email });
 
     if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
-    return NextResponse.json({ user_id: authExists.id }, { status: 201 });
+    return NextResponse.json({ user_id: existingAuthUser.id }, { status: 201 });
   }
 
-  // Create brand new auth user
+  // Completely new user — create auth account then users row
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
