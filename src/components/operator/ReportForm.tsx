@@ -15,14 +15,12 @@ const SEVERITY_COLORS: Record<Severity, string> = {
 interface Props {
   machineId: string;
   userId: string;
-  defaultName?: string;
 }
 
-export default function ReportForm({ machineId, userId, defaultName = '' }: Props) {
+export default function ReportForm({ machineId, userId }: Props) {
   const supabase = createClient();
   const { t }    = useLang();
 
-  const [reporterName, setReporterName] = useState(defaultName);
   const [issueType, setIssueType]       = useState<IssueType>('Mechanical');
   const [severity, setSeverity]         = useState<Severity>('Medium');
   const [description, setDescription]   = useState('');
@@ -60,9 +58,6 @@ export default function ReportForm({ machineId, userId, defaultName = '' }: Prop
         image_url = urlData.publicUrl;
       }
 
-      const nameLine = reporterName.trim() ? `[${reporterName.trim()}] ` : '';
-      const fullDescription = nameLine + (description.trim() || '');
-
       const res = await fetch('/api/tickets', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -71,7 +66,7 @@ export default function ReportForm({ machineId, userId, defaultName = '' }: Prop
           operator_id: userId,
           issue_type:  issueType,
           severity,
-          description: fullDescription || null,
+          description: description.trim() || null,
           image_url,
         }),
       });
@@ -91,7 +86,6 @@ export default function ReportForm({ machineId, userId, defaultName = '' }: Prop
 
   const reset = () => {
     setSubmitted(false);
-    setReporterName(defaultName);
     setDescription('');
     setImageFile(null);
     setPreview(null);
@@ -116,18 +110,6 @@ export default function ReportForm({ machineId, userId, defaultName = '' }: Prop
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-      {/* Reporter Name */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">{t.form.yourName}</label>
-        <input
-          required
-          value={reporterName}
-          onChange={(e) => setReporterName(e.target.value)}
-          placeholder={t.form.namePH}
-          className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-
       {/* Issue Type */}
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">{t.form.issueType}</label>

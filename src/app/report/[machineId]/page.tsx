@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import ReportForm from '@/components/operator/ReportForm';
+import AppNav from '@/components/shared/AppNav';
 import { TText } from '@/components/shared/TText';
 
 interface Props {
@@ -17,7 +18,7 @@ export default async function ReportPage({ params }: Props) {
 
   const { data: profile } = await supabase
     .from('users')
-    .select('name')
+    .select('name, role')
     .eq('user_id', user.id)
     .single();
 
@@ -47,32 +48,36 @@ export default async function ReportPage({ params }: Props) {
 
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-blue-700 via-blue-600 to-blue-700 px-5 pt-10 pb-16 text-white relative overflow-hidden">
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{ backgroundImage: 'radial-gradient(circle at 80% 50%, rgba(255,255,255,0.4) 0%, transparent 60%)' }}
-        />
-        <p className="text-blue-200 text-xs font-bold uppercase tracking-widest mb-2 relative">
-          <TText en="Maintenance Report" th="แบบฟอร์มแจ้งซ่อม" />
-        </p>
-        <h1 className="text-2xl font-bold relative">{machine.name}</h1>
-        <p className="text-blue-200 text-sm mt-0.5 relative">{machine.location}</p>
+      <AppNav name={profile?.name ?? user.email ?? 'Operator'} role={profile?.role ?? 'operator'} />
 
-        {isDown && (
-          <div className="mt-3 flex items-center gap-2 bg-red-500/30 border border-red-400/40 text-red-100 text-xs font-semibold px-3 py-2 rounded-xl w-fit relative">
-            <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse inline-block" />
-            <TText en="Machine currently DOWN" th="เครื่องจักรหยุดทำงาน" />
-          </div>
-        )}
-      </div>
+      <div className="pt-14 flex-1 flex flex-col">
+        {/* Hero */}
+        <div className="bg-gradient-to-br from-blue-700 via-blue-600 to-blue-700 px-5 pt-8 pb-16 text-white relative overflow-hidden">
+          <div
+            className="absolute inset-0 opacity-10"
+            style={{ backgroundImage: 'radial-gradient(circle at 80% 50%, rgba(255,255,255,0.4) 0%, transparent 60%)' }}
+          />
+          <p className="text-blue-200 text-xs font-bold uppercase tracking-widest mb-2 relative">
+            <TText en="Maintenance Report" th="แบบฟอร์มแจ้งซ่อม" />
+          </p>
+          <h1 className="text-2xl font-bold relative">{machine.name}</h1>
+          <p className="text-blue-200 text-sm mt-0.5 relative">{machine.location}</p>
 
-      {/* Form card — overlapping hero */}
-      <div className="px-4 -mt-8 pb-10 flex-1">
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-          <div className="h-1 bg-gradient-to-r from-blue-600 via-blue-400 to-blue-600" />
-          <div className="p-5">
-            <ReportForm machineId={params.machineId} userId={user.id} defaultName={profile?.name ?? ''} />
+          {isDown && (
+            <div className="mt-3 flex items-center gap-2 bg-red-500/30 border border-red-400/40 text-red-100 text-xs font-semibold px-3 py-2 rounded-xl w-fit relative">
+              <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse inline-block" />
+              <TText en="Machine currently DOWN" th="เครื่องจักรหยุดทำงาน" />
+            </div>
+          )}
+        </div>
+
+        {/* Form card */}
+        <div className="px-4 -mt-8 pb-10 flex-1">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200">
+            <div className="h-1 bg-gradient-to-r from-blue-600 via-blue-400 to-blue-600 rounded-t-2xl" />
+            <div className="p-5">
+              <ReportForm machineId={params.machineId} userId={user.id} />
+            </div>
           </div>
         </div>
       </div>
