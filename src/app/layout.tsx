@@ -30,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
-      <body className="antialiased bg-slate-50">
+      <body className="antialiased bg-slate-100">
         <LangProvider>
           {children}
           <LangToggle />
