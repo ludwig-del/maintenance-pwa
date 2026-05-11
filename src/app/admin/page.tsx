@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation';
 import MachineGrid from '@/components/admin/MachineGrid';
 import AnalyticsDashboard from '@/components/admin/AnalyticsDashboard';
 import DowntimeLog from '@/components/shared/DowntimeLog';
-import UserManagement from '@/components/admin/UserManagement';
 import { TText } from '@/components/shared/TText';
 
 export default async function AdminPage() {
@@ -43,18 +42,11 @@ export default async function AdminPage() {
           <AnalyticsDashboard />
         </section>
 
-        <section className="mb-10">
+        <section>
           <h2 className="text-base font-semibold text-gray-600 uppercase tracking-wide mb-4">
             <TText en="Downtime Log" th="บันทึกการหยุดทำงาน" />
           </h2>
           <DowntimeLog limit={50} />
-        </section>
-
-        <section>
-          <h2 className="text-base font-semibold text-gray-600 uppercase tracking-wide mb-4">
-            <TText en="User Management" th="จัดการผู้ใช้" />
-          </h2>
-          <UserManagement />
         </section>
       </div>
     </main>
